@@ -120,6 +120,7 @@ export default function NewProjectPage() {
       data: {}
     };
     setBlocks([...blocks, newBlock]);
+    setActiveBlockId(newBlock.id);
     setShowAddMenu(false);
   };
 
@@ -316,12 +317,43 @@ export default function NewProjectPage() {
                         <ImageUploader 
                           onUploadComplete={(url) => updateBlockData(activeBlock.id, { imageUrl: url })} 
                         />
+                        
+                        <div className="flex items-center gap-sm">
+                          <hr className="flex-1 border-outline-variant" />
+                          <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider shrink-0">
+                            oppure URL diretto
+                          </span>
+                          <hr className="flex-1 border-outline-variant" />
+                        </div>
+                        <div>
+                          <input
+                            type="url"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-sm text-primary transition-all"
+                            value={activeBlock.data?.imageUrl || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { imageUrl: e.target.value })}
+                            placeholder="https://esempio.com/immagine.jpg"
+                          />
+                        </div>
+
                         {activeBlock.data?.imageUrl && (
                           <div className="w-full h-32 relative rounded overflow-hidden">
                             <img src={activeBlock.data.imageUrl} alt="Preview" className="object-cover w-full h-full" />
                           </div>
                         )}
                         
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Label Superiore (Kicker)
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.kicker || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { kicker: e.target.value })}
+                            placeholder="Es. Exclusive Listing"
+                          />
+                        </div>
+
                         <div>
                           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
                             Titolo ({activeLang.toUpperCase()})

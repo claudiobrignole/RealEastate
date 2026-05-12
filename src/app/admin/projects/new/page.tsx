@@ -22,6 +22,7 @@ import HeroBlock from '@/components/blocks/HeroBlock';
 import EditorialBlock from '@/components/blocks/EditorialBlock';
 import FeaturesBlock from '@/components/blocks/FeaturesBlock';
 import FormBlock from '@/components/blocks/FormBlock';
+import GalleryBlock from '@/components/blocks/GalleryBlock';
 
 type Language = 'it' | 'en' | 'fr' | 'de';
 
@@ -576,7 +577,50 @@ export default function NewProjectPage() {
                       </div>
                     )}
 
-                    {activeBlock.type !== 'hero' && activeBlock.type !== 'editorial' && activeBlock.type !== 'features' && activeBlock.type !== 'form' && (
+                    {activeBlock.type === 'gallery' && (
+                      <div className="flex flex-col gap-md">
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Titolo Sezione
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.sectionTitle || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { sectionTitle: e.target.value })}
+                            placeholder="Galleria"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Numero Foto
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.imageCount || 6}
+                            onChange={(e) => updateBlockData(activeBlock.id, { imageCount: parseInt(e.target.value) || 6 })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Layout
+                          </label>
+                          <select
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.layout || 'grid'}
+                            onChange={(e) => updateBlockData(activeBlock.id, { layout: e.target.value })}
+                          >
+                            <option value="grid">Griglia standard</option>
+                            <option value="masonry">Stile Masonry</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBlock.type !== 'hero' && activeBlock.type !== 'editorial' && activeBlock.type !== 'features' && activeBlock.type !== 'form' && activeBlock.type !== 'gallery' && (
                       <p className="font-body-sm text-on-surface-variant text-sm">
                         Proprietà per {activeBlock.type} da implementare.
                       </p>
@@ -690,6 +734,9 @@ export default function NewProjectPage() {
                       ...block.data,
                       projectId: slug || 'preview'
                     }} />;
+                  }
+                  if (block.type === 'gallery') {
+                    return <GalleryBlock key={block.id} data={block.data} />;
                   }
                   return (
                     <div key={block.id} className="p-8 border-2 border-dashed border-outline-variant m-8 text-center text-on-surface-variant rounded-lg bg-surface-container-lowest">

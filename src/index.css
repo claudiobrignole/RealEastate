@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-hyphenated {
+    hyphens: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    text-align: justify;
+  }
+}
+

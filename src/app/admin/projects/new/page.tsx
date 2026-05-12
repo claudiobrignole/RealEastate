@@ -19,6 +19,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { PageBlock, BlockType } from '@/types/blocks';
 import ImageUploader from '@/components/ui/ImageUploader';
 import HeroBlock from '@/components/blocks/HeroBlock';
+import EditorialBlock from '@/components/blocks/EditorialBlock';
+import FeaturesBlock from '@/components/blocks/FeaturesBlock';
 
 type Language = 'it' | 'en' | 'fr' | 'de';
 
@@ -384,8 +386,91 @@ export default function NewProjectPage() {
                         </div>
                       </div>
                     )}
-                    {activeBlock.type !== 'hero' && (
-                      <p className="font-body-sm text-on-surface-variant text-sm">Proprietà per {activeBlock.type} da implementare.</p>
+                    {activeBlock.type === 'editorial' && (
+                      <div className="flex flex-col gap-md">
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Titolo Sezione (opzionale)
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.title || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { title: e.target.value })}
+                            placeholder="Es. La Proprietà"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Layout
+                          </label>
+                          <select
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.layout || 'full'}
+                            onChange={(e) => updateBlockData(activeBlock.id, { layout: e.target.value })}
+                          >
+                            <option value="full">Solo testo</option>
+                            <option value="with-accent">Con linea accent gold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Testo ({activeLang.toUpperCase()})
+                          </label>
+                          <textarea
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all resize-none min-h-[120px]"
+                            value={activeBlock.data?.body?.[activeLang] || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, {
+                              body: { ...(activeBlock.data.body || {}), [activeLang]: e.target.value }
+                            })}
+                            placeholder="Descrizione dell'immobile..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBlock.type === 'features' && (
+                      <div className="flex flex-col gap-md">
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Titolo Sezione
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.sectionTitle || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { sectionTitle: e.target.value })}
+                            placeholder="Caratteristiche"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Caratteristiche (una per riga, formato: Label|Valore)
+                          </label>
+                          <textarea
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-sm text-primary transition-all resize-none min-h-[140px]"
+                            value={(activeBlock.data?.features || []).map((f: any) => `${f.label}|${f.value}`).join('\n')}
+                            onChange={(e) => {
+                              const lines = e.target.value.split('\n').filter((l: string) => l.includes('|'));
+                              const features = lines.map((l: string) => {
+                                const [label, ...rest] = l.split('|');
+                                return { label: label.trim(), value: rest.join('|').trim() };
+                              });
+                              updateBlockData(activeBlock.id, { features });
+                            }}
+                            placeholder={"Superficie|285 m²\nLocali|6\nPiano|3°\nGarage|2 posti"}
+                          />
+                          <p className="font-label-caps text-label-caps text-on-surface-variant mt-xs">
+                            Formato: Label|Valore — una riga per caratteristica
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBlock.type !== 'hero' && activeBlock.type !== 'editorial' && activeBlock.type !== 'features' && (
+                      <p className="font-body-sm text-on-surface-variant text-sm">
+                        Proprietà per {activeBlock.type} da implementare.
+                      </p>
                     )}
                   </div>
                 )}
@@ -480,6 +565,16 @@ export default function NewProjectPage() {
                       title: block.data?.title?.[activeLang] || '',
                       subtitle: block.data?.subtitle?.[activeLang] || ''
                     }} />;
+                  }
+                  if (block.type === 'editorial') {
+                    return <EditorialBlock key={block.id} data={{
+                      ...block.data,
+                      title: block.data?.title || '',
+                      body: block.data?.body?.[activeLang] || ''
+                    }} />;
+                  }
+                  if (block.type === 'features') {
+                    return <FeaturesBlock key={block.id} data={block.data} />;
                   }
                   return (
                     <div key={block.id} className="p-8 border-2 border-dashed border-outline-variant m-8 text-center text-on-surface-variant rounded-lg bg-surface-container-lowest">

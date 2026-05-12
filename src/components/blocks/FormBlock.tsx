@@ -37,17 +37,28 @@ export default function FormBlock({ data }: { data: any }) {
     }
   };
 
-  const inputClass = "w-full bg-white/10 border border-white/20 rounded-DEFAULT px-md py-sm text-on-primary placeholder:text-on-primary/50 focus:outline-none focus:ring-1 focus:ring-white/60 transition-all font-body-md text-body-md backdrop-blur-sm";
+  const isDark = !data?.theme || data.theme === 'dark';
+
+  const sectionBg = isDark ? 'bg-inverse-surface' : 'bg-surface-container-lowest';
+  const titleColor = isDark ? 'text-on-inverse-surface' : 'text-primary';
+  const subtitleColor = isDark ? 'text-on-inverse-surface/70' : 'text-on-surface-variant';
+  const accentColor = 'bg-secondary';
+  const inputClass = isDark
+    ? 'w-full bg-white/10 border border-white/20 rounded-DEFAULT px-md py-sm text-on-primary placeholder:text-on-primary/50 focus:outline-none focus:ring-1 focus:ring-white/60 transition-all font-body-md text-body-md backdrop-blur-sm'
+    : 'w-full bg-surface-bright border border-outline-variant rounded-DEFAULT px-md py-sm text-primary placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary transition-all font-body-md text-body-md';
+  const btnClass = isDark
+    ? 'w-full bg-secondary text-on-secondary py-md rounded-DEFAULT font-data-point text-data-point uppercase tracking-wider hover:bg-secondary-fixed transition-colors disabled:opacity-60 flex items-center justify-center gap-sm'
+    : 'w-full bg-primary text-on-primary py-md rounded-DEFAULT font-data-point text-data-point uppercase tracking-wider hover:bg-inverse-surface transition-colors disabled:opacity-60 flex items-center justify-center gap-sm';
 
   if (status === 'success') {
     return (
-      <section className="px-margin py-xl bg-inverse-surface">
+      <section className={`px-margin py-xl ${sectionBg}`}>
         <div className="max-w-lg mx-auto text-center flex flex-col items-center gap-md">
           <CheckCircle className="w-12 h-12 text-secondary" />
-          <h2 className="font-h2 text-h2 text-on-inverse-surface">
+          <h2 className={`font-h2 text-h2 ${titleColor}`}>
             Richiesta inviata
           </h2>
-          <p className="font-body-lg text-body-lg text-on-inverse-surface/70">
+          <p className={`font-body-lg text-body-lg ${subtitleColor}`}>
             Ti contatteremo al più presto.
           </p>
         </div>
@@ -56,13 +67,13 @@ export default function FormBlock({ data }: { data: any }) {
   }
 
   return (
-    <section className="px-margin py-xl bg-inverse-surface">
+    <section className={`px-margin py-xl ${sectionBg}`}>
       <div className="max-w-lg mx-auto">
-        <h2 className="font-h2 text-h2 text-on-inverse-surface mb-sm text-center">
+        <h2 className={`font-h2 text-h2 mb-sm text-center ${titleColor}`}>
           {data?.title || 'Richiedi Informazioni'}
         </h2>
         {data?.accentColor === 'gold' && (
-          <div className="w-12 h-[2px] bg-secondary mx-auto mb-lg" />
+          <div className={`w-12 h-[2px] mx-auto mb-lg ${accentColor}`} />
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-md mt-lg">
@@ -101,7 +112,7 @@ export default function FormBlock({ data }: { data: any }) {
           <button
             type="submit"
             disabled={status === 'loading'}
-            className="w-full bg-secondary text-on-secondary py-md rounded-DEFAULT font-data-point text-data-point uppercase tracking-wider hover:bg-secondary-fixed transition-colors disabled:opacity-60 flex items-center justify-center gap-sm"
+            className={btnClass}
           >
             {status === 'loading' 
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Invio in corso...</>

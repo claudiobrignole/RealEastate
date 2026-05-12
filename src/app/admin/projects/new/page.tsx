@@ -391,6 +391,28 @@ export default function NewProjectPage() {
                       <div className="flex flex-col gap-md">
                         <div>
                           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Tema Sfondo
+                          </label>
+                          <div className="flex gap-sm">
+                            {(['light', 'dark'] as const).map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => updateBlockData(activeBlock.id, { theme: t })}
+                                className={cn(
+                                  "flex-1 py-xs rounded-DEFAULT font-label-caps text-label-caps uppercase tracking-wider border transition-colors",
+                                  (activeBlock.data?.theme ?? 'light') === t
+                                    ? "bg-primary text-on-primary border-primary"
+                                    : "bg-surface-bright text-on-surface-variant border-outline-variant hover:border-tertiary/50"
+                                )}
+                              >
+                                {t === 'dark' ? '🌙 Scuro' : '☀️ Chiaro'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
                             Titolo Sezione (opzionale)
                           </label>
                           <input
@@ -434,6 +456,28 @@ export default function NewProjectPage() {
                       <div className="flex flex-col gap-md">
                         <div>
                           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Tema Sfondo
+                          </label>
+                          <div className="flex gap-sm">
+                            {(['light', 'dark'] as const).map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => updateBlockData(activeBlock.id, { theme: t })}
+                                className={cn(
+                                  "flex-1 py-xs rounded-DEFAULT font-label-caps text-label-caps uppercase tracking-wider border transition-colors",
+                                  (activeBlock.data?.theme ?? 'light') === t
+                                    ? "bg-primary text-on-primary border-primary"
+                                    : "bg-surface-bright text-on-surface-variant border-outline-variant hover:border-tertiary/50"
+                                )}
+                              >
+                                {t === 'dark' ? '🌙 Scuro' : '☀️ Chiaro'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
                             Titolo Sezione
                           </label>
                           <input
@@ -470,6 +514,28 @@ export default function NewProjectPage() {
 
                     {activeBlock.type === 'form' && (
                       <div className="flex flex-col gap-md">
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Tema Sfondo
+                          </label>
+                          <div className="flex gap-sm">
+                            {(['dark', 'light'] as const).map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => updateBlockData(activeBlock.id, { theme: t })}
+                                className={cn(
+                                  "flex-1 py-xs rounded-DEFAULT font-label-caps text-label-caps uppercase tracking-wider border transition-colors",
+                                  (activeBlock.data?.theme ?? 'dark') === t
+                                    ? "bg-primary text-on-primary border-primary"
+                                    : "bg-surface-bright text-on-surface-variant border-outline-variant hover:border-tertiary/50"
+                                )}
+                              >
+                                {t === 'dark' ? '🌙 Scuro' : '☀️ Chiaro'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <div>
                           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
                             Titolo Form

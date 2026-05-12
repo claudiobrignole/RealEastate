@@ -1,5 +1,7 @@
 'use server';
 
+import { db } from '@/lib/firebase';
+import { collection as fbCollection, addDoc as fbAddDoc, serverTimestamp as fbServerTimestamp } from 'firebase/firestore';
 import { serverDb } from '../firebase-server';
 import { collection, collectionGroup, addDoc, getDocs, orderBy, query, serverTimestamp } from 'firebase/firestore/lite';
 
@@ -70,5 +72,26 @@ export async function getLeads(projectId?: string) {
        console.error("Needs Firestore composite index for collectionGroup query");
     }
     return { success: false, error: error.message || 'Errore recupero leads' };
+  }
+}
+
+export async function submitLead(data: {
+  projectId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  message?: string;
+}) {
+  try {
+    await fbAddDoc(fbCollection(db, 'leads'), {
+      ...data,
+      source: 'landing_form',
+      status: 'new',
+      createdAt: fbServerTimestamp(),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error('submitLead error:', error);
+    return { success: false, error: error.message };
   }
 }

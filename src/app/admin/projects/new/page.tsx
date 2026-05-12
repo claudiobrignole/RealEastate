@@ -21,6 +21,7 @@ import ImageUploader from '@/components/ui/ImageUploader';
 import HeroBlock from '@/components/blocks/HeroBlock';
 import EditorialBlock from '@/components/blocks/EditorialBlock';
 import FeaturesBlock from '@/components/blocks/FeaturesBlock';
+import FormBlock from '@/components/blocks/FormBlock';
 
 type Language = 'it' | 'en' | 'fr' | 'de';
 
@@ -467,7 +468,49 @@ export default function NewProjectPage() {
                       </div>
                     )}
 
-                    {activeBlock.type !== 'hero' && activeBlock.type !== 'editorial' && activeBlock.type !== 'features' && (
+                    {activeBlock.type === 'form' && (
+                      <div className="flex flex-col gap-md">
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Titolo Form
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.title || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { title: e.target.value })}
+                            placeholder="Richiedi Informazioni"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Testo Pulsante CTA
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.ctaLabel || ''}
+                            onChange={(e) => updateBlockData(activeBlock.id, { ctaLabel: e.target.value })}
+                            placeholder="Invia Richiesta"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                            Stile Accent
+                          </label>
+                          <select
+                            className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary px-sm py-2 font-body-md text-primary transition-all"
+                            value={activeBlock.data?.accentColor || 'default'}
+                            onChange={(e) => updateBlockData(activeBlock.id, { accentColor: e.target.value })}
+                          >
+                            <option value="default">Standard</option>
+                            <option value="gold">Con linea gold</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBlock.type !== 'hero' && activeBlock.type !== 'editorial' && activeBlock.type !== 'features' && activeBlock.type !== 'form' && (
                       <p className="font-body-sm text-on-surface-variant text-sm">
                         Proprietà per {activeBlock.type} da implementare.
                       </p>
@@ -575,6 +618,12 @@ export default function NewProjectPage() {
                   }
                   if (block.type === 'features') {
                     return <FeaturesBlock key={block.id} data={block.data} />;
+                  }
+                  if (block.type === 'form') {
+                    return <FormBlock key={block.id} data={{
+                      ...block.data,
+                      projectId: slug || 'preview'
+                    }} />;
                   }
                   return (
                     <div key={block.id} className="p-8 border-2 border-dashed border-outline-variant m-8 text-center text-on-surface-variant rounded-lg bg-surface-container-lowest">

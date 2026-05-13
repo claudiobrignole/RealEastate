@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -12,7 +12,9 @@ import {
   BarChart2,
   Settings,
   Bell,
-  Plus
+  Plus,
+  Menu,
+  X
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -32,6 +34,7 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const currentNavItem = navItems.find((item) => 
     item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href)
@@ -41,8 +44,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="text-on-surface antialiased flex min-h-screen bg-background">
       {/* SideNavBar */}
-      <nav className="bg-surface-container-lowest h-screen w-72 flex flex-col fixed left-0 top-0 border-r border-outline-variant z-50">
+      <nav className={`bg-surface-container-lowest h-screen w-72 ${sidebarOpen ? 'flex' : 'hidden'} lg:flex flex-col fixed left-0 top-0 border-r border-outline-variant z-50`}>
         <div className="flex flex-col py-lg px-md gap-md h-full">
+          <button
+            className="lg:hidden self-end p-xs text-on-surface-variant hover:text-on-surface mb-sm"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
           <div>
             <h1 className="font-label-caps text-label-caps tracking-widest text-on-surface">
               AURELIAN
@@ -97,28 +106,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </nav>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Canvas Area */}
-      <div className="flex-1 ml-72 min-h-screen pt-20 px-lg py-lg">
+      <div className="flex-1 w-full lg:ml-72 min-h-screen pt-20 px-3 md:px-md lg:px-lg py-lg">
         {/* TopAppBar */}
-        <header className="bg-surface-bright/90 backdrop-blur-md fixed top-0 right-0 h-20 z-40 border-b border-outline-variant flex justify-between items-center w-[calc(100%-18rem)] px-lg transition-all duration-200">
-          <div className="flex items-center">
-            <span className="font-label-caps text-label-caps tracking-widest text-on-surface-variant hidden md:block uppercase">
-              {breadcrumb}
-            </span>
+        <header className="bg-surface-bright/90 backdrop-blur-md fixed top-0 right-0 h-20 z-40 border-b border-outline-variant flex justify-between items-center w-full lg:w-[calc(100%-18rem)] px-3 md:px-md lg:px-lg transition-all duration-200">
+          {/* Logo — sempre visibile */}
+          <div className="flex flex-col leading-none">
+            <span className="font-label-caps text-label-caps tracking-widest text-on-surface uppercase">AURELIAN</span>
+            <span className="font-label-caps text-label-caps tracking-widest text-secondary uppercase">RESERVE</span>
           </div>
-          
+
+          {/* Breadcrumb — solo desktop */}
+          <span className="font-label-caps text-label-caps tracking-widest text-on-surface-variant hidden lg:block uppercase mx-auto">
+            {breadcrumb}
+          </span>
+
+          {/* Azioni destra */}
           <div className="flex items-center gap-md">
-            <Link href="/admin/projects/new" className="bg-on-surface text-surface px-md py-sm font-body-sm text-body-sm rounded-DEFAULT hover:bg-secondary transition-colors duration-200 flex items-center gap-xs">
-              <Plus className="w-4 h-4" />
-              Nuovo Progetto
-            </Link>
-            <div className="flex gap-sm">
-              <button className="p-xs text-on-surface-variant hover:text-secondary transition-colors relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full" />
-              </button>
-            </div>
+            <button className="p-xs text-on-surface-variant hover:text-secondary transition-colors relative">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full" />
+            </button>
+            {/* Hamburger — solo mobile/tablet */}
+            <button
+              className="lg:hidden p-xs text-on-surface-variant hover:text-on-surface transition-colors"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
         </header>
 

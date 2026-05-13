@@ -230,9 +230,9 @@ export default function NewProjectPage() {
     <div className="pt-12 px-[12px] md:px-[24px] lg:px-margin py-md max-w-[1800px] mx-auto min-h-screen flex flex-col overflow-x-hidden">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-lg shrink-0 gap-sm">
-        <div className="flex items-center gap-sm">
-          <Link href="/admin/projects" className="p-sm rounded-full hover:bg-surface-container-low text-on-surface-variant transition-colors">
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex flex-col gap-xs">
+          <Link href="/admin/projects" className="inline-flex items-center gap-xs p-xs -ml-xs rounded hover:bg-surface-container-low text-on-surface-variant transition-colors w-fit">
+            <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
             <h1 className="font-h1 text-h2 text-primary">Nuovo Progetto</h1>
@@ -242,7 +242,7 @@ export default function NewProjectPage() {
         <button 
           onClick={handleSave}
           disabled={isSaving}
-          className="bg-primary text-on-primary px-lg py-sm rounded-DEFAULT font-data-point text-data-point flex items-center gap-xs hover:bg-inverse-surface transition-colors disabled:opacity-70"
+          className="bg-primary text-on-primary px-lg py-sm rounded-DEFAULT font-data-point text-data-point flex items-center justify-center gap-xs hover:bg-inverse-surface transition-colors disabled:opacity-70 w-full sm:w-auto"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {isSaving ? "Salvataggio..." : "Salva Progetto"}

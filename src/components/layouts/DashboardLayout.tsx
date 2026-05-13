@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Main Canvas Area */}
-      <div className="flex-1 w-full lg:ml-72 min-h-screen pt-16">
+      <div className="flex-1 w-full lg:ml-72 min-h-screen pt-16 px-[12px] md:px-[24px] lg:px-margin">
         {/* TopAppBar */}
         <header className="bg-surface-bright/90 backdrop-blur-md fixed top-0 right-0 h-20 z-40 border-b border-outline-variant flex justify-between items-center w-full lg:w-[calc(100%-18rem)] px-3 md:px-md lg:px-lg transition-all duration-200">
           <span className="font-label-caps text-label-caps tracking-widest text-on-surface uppercase">

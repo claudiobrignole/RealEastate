@@ -67,6 +67,7 @@ export default function NewProjectPage() {
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
   
   const updateBlockData = (id: string, newData: any) => {
     setBlocks(blocks.map(b => b.id === id ? { ...b, data: { ...b.data, ...newData } } : b));
@@ -226,7 +227,7 @@ export default function NewProjectPage() {
   };
 
   return (
-    <div className="pt-12 p-margin max-w-[1800px] mx-auto min-h-screen flex flex-col">
+    <div className="pt-12 p-margin max-w-[1800px] mx-auto min-h-screen flex flex-col overflow-x-hidden">
       {/* Header section */}
       <div className="flex items-center justify-between mb-lg shrink-0">
         <div className="flex items-center gap-sm">
@@ -248,10 +249,38 @@ export default function NewProjectPage() {
         </button>
       </div>
 
+      <div className="flex lg:hidden border border-outline-variant rounded-DEFAULT overflow-hidden mb-md shrink-0">
+        <button
+          onClick={() => setActiveTab('editor')}
+          className={cn(
+            "flex-1 py-sm font-label-caps text-label-caps uppercase tracking-wider transition-colors",
+            activeTab === 'editor'
+              ? "bg-primary text-on-primary"
+              : "bg-surface-bright text-on-surface-variant hover:bg-surface-container-low"
+          )}
+        >
+          ✏️ Editor
+        </button>
+        <button
+          onClick={() => setActiveTab('preview')}
+          className={cn(
+            "flex-1 py-sm font-label-caps text-label-caps uppercase tracking-wider transition-colors",
+            activeTab === 'preview'
+              ? "bg-primary text-on-primary"
+              : "bg-surface-bright text-on-surface-variant hover:bg-surface-container-low"
+          )}
+        >
+          👁 Preview
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter flex-1 min-h-0">
         
         {/* Sidebar Inputs */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-lg overflow-y-auto pb-lg pr-xs">
+        <div className={cn(
+          "lg:col-span-5 xl:col-span-4 flex flex-col gap-lg overflow-y-auto pb-lg pr-xs",
+          activeTab === 'preview' ? "hidden lg:flex" : "flex"
+        )}>
           <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-md">
             <h3 className="font-h3 text-h3 text-primary mb-md border-b border-outline-variant pb-xs flex items-center gap-xs">
               <LayoutTemplate className="w-5 h-5 text-on-surface-variant" /> Impostazioni e Tema
@@ -697,7 +726,10 @@ export default function NewProjectPage() {
         </div>
 
         {/* Live Preview Area */}
-        <div className="lg:col-span-7 xl:col-span-8 bg-surface-variant rounded-lg border border-outline-variant relative overflow-hidden shadow-inner hidden lg:block">
+        <div className={cn(
+          "lg:col-span-7 xl:col-span-8 bg-surface-variant rounded-lg border border-outline-variant relative overflow-hidden shadow-inner",
+          activeTab === 'preview' ? "block min-h-[70vh]" : "hidden lg:block"
+        )}>
           <div className="absolute top-0 inset-x-0 h-10 bg-surface-container-high border-b border-outline-variant flex items-center px-4 gap-2 z-20">
              <div className="w-3 h-3 rounded-full bg-error/50"></div>
              <div className="w-3 h-3 rounded-full bg-tertiary-container/50"></div>

@@ -1,7 +1,5 @@
 'use server';
 
-import { db } from '@/lib/firebase';
-import { collection as fbCollection, addDoc as fbAddDoc, serverTimestamp as fbServerTimestamp } from 'firebase/firestore';
 import { serverDb } from '../firebase-server';
 import { collection, collectionGroup, addDoc, getDocs, orderBy, query, serverTimestamp } from 'firebase/firestore/lite';
 
@@ -61,7 +59,6 @@ export async function getLeads(projectId?: string) {
       return {
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || null
       };
     });
 
@@ -83,11 +80,11 @@ export async function submitLead(data: {
   message?: string;
 }) {
   try {
-    await fbAddDoc(fbCollection(db, 'leads'), {
+    await addDoc(collection(serverDb, 'leads'), {
       ...data,
       source: 'landing_form',
       status: 'new',
-      createdAt: fbServerTimestamp(),
+      createdAt: serverTimestamp(),
     });
     return { success: true };
   } catch (error: any) {

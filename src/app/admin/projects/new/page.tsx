@@ -227,9 +227,9 @@ export default function NewProjectPage() {
   };
 
   return (
-    <div className="pt-12 p-margin max-w-[1800px] mx-auto min-h-screen flex flex-col overflow-x-hidden">
+    <div className="pt-12 px-[12px] md:px-[24px] lg:px-margin py-md max-w-[1800px] mx-auto min-h-screen flex flex-col overflow-x-hidden">
       {/* Header section */}
-      <div className="flex items-center justify-between mb-lg shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-lg shrink-0 gap-sm">
         <div className="flex items-center gap-sm">
           <Link href="/admin/projects" className="p-sm rounded-full hover:bg-surface-container-low text-on-surface-variant transition-colors">
             <ArrowLeft className="w-5 h-5" />

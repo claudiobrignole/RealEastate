@@ -44,8 +44,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="text-on-surface antialiased flex min-h-screen bg-background">
       {/* SideNavBar */}
-      <nav className={`bg-surface-container-lowest h-screen w-72 ${sidebarOpen ? 'flex' : 'hidden'} lg:flex flex-col fixed right-0 top-0 lg:left-0 lg:right-auto border-r border-outline-variant z-50`}>
-        <div className="flex flex-col py-lg px-md gap-md h-full">
+      <nav className={`bg-surface-container-lowest h-screen w-72 ${sidebarOpen ? 'flex' : 'hidden'} lg:flex flex-col fixed right-0 top-0 lg:left-0 lg:right-auto border-r border-outline-variant z-50 overflow-y-auto`}>
+        <div className="flex flex-col pt-[12px] pb-md px-md gap-xs h-full">
           <button
             className="lg:hidden self-end p-xs text-on-surface-variant hover:text-on-surface mb-sm"
             onClick={() => setSidebarOpen(false)}
@@ -62,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <hr className="border-t-[1px] border-outline-variant mt-md mb-md" />
           </div>
           
-          <div className="flex flex-col gap-sm flex-grow">
+          <div className="flex flex-col gap-[2px] flex-grow">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === '/admin' ? pathname === item.href : pathname.startsWith(item.href);
@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-sm py-sm pl-4 transition-all duration-300 ease-in-out font-body-md text-body-md",
+                    "flex items-center gap-sm py-[10px] pl-4 transition-all duration-300 ease-in-out font-body-md text-body-md",
                     isActive 
                       ? "border-l-[3px] border-secondary-fixed-dim bg-secondary-fixed/20 text-on-surface font-semibold"
                       : "border-l-[3px] border-transparent text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
@@ -88,7 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="mt-auto flex flex-col gap-md">
             <Link 
               href="#" 
-              className="flex items-center gap-sm py-sm text-on-surface-variant pl-4 hover:bg-surface-container-low hover:text-on-surface transition-all duration-300 ease-in-out font-body-md text-body-md border-l-[3px] border-transparent"
+              className="flex items-center gap-sm py-[10px] text-on-surface-variant pl-4 hover:bg-surface-container-low hover:text-on-surface transition-all duration-300 ease-in-out font-body-md text-body-md border-l-[3px] border-transparent"
             >
               <Settings className="w-5 h-5" />
               <span>Impostazioni</span>
@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Main Canvas Area */}
-      <div className="flex-1 w-full lg:ml-72 min-h-screen pt-20">
+      <div className="flex-1 w-full lg:ml-72 min-h-screen pt-16">
         {/* TopAppBar */}
         <header className="bg-surface-bright/90 backdrop-blur-md fixed top-0 right-0 h-20 z-40 border-b border-outline-variant flex justify-between items-center w-full lg:w-[calc(100%-18rem)] px-3 md:px-md lg:px-lg transition-all duration-200">
           <span className="font-label-caps text-label-caps tracking-widest text-on-surface uppercase">

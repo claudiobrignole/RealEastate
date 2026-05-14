@@ -142,12 +142,10 @@ export default function NewProjectPage() {
   };
 
   const handleTranslateAI = async () => {
-    alert("La traduzione automatica con AI è temporaneamente in pausa in attesa di credenziali API valide.");
-    /*
     const sourceContent = content[activeLang];
     
     if (!sourceContent.title && !sourceContent.content && !sourceContent.subtitle) {
-      alert(`Il contenuto in ${activeLang.toUpperCase()} è vuoto, compila prima quello.`);
+      alert(`Il contenuto in ${activeLang.toUpperCase()} è vuoto. Compila prima i testi nella lingua attiva.`);
       return;
     }
 
@@ -182,20 +180,19 @@ export default function NewProjectPage() {
       setContent(prev => {
         const newObj = { ...prev };
         results.forEach(result => {
-          newObj[result.langCode] = result.content;
+          newObj[result.langCode as Language] = result.content;
         });
         return newObj;
       });
       
-      alert('Traduzione completata!');
+      alert('Traduzione completata con successo!');
       
     } catch (error) {
       console.error(error);
-      alert("Si è verificato un errore durante la traduzione AI.");
+      alert("Errore durante la traduzione AI. Verifica che la API key Gemini sia configurata correttamente nei Secrets.");
     } finally {
       setIsTranslating(false);
     }
-    */
   };
 
   const handleSave = async () => {
@@ -209,6 +206,7 @@ export default function NewProjectPage() {
         slug: slug || content.it.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         themeId: theme,
         content: content,
+        blocks: blocks,
         status: 'draft'
       });
       if (res.success) {
@@ -216,10 +214,10 @@ export default function NewProjectPage() {
         router.push('/admin/projects');
       } else {
         console.error("Errore salvataggio:", res.error);
-        alert(`Errore durante il salvataggio: ${res.error}`);
+        alert(`Errore durante il salvataggio o database in sola lettura. Error: ${res.error}`);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Critical error:", error);
       alert("Errore critico durante il salvataggio.");
     } finally {
       setIsSaving(false);

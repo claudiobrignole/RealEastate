@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="mt-auto flex flex-col gap-md">
             <Link 
-              href="#" 
+              href="/admin/settings" 
               className="flex items-center gap-sm py-[10px] text-on-surface-variant pl-4 hover:bg-surface-container-low hover:text-on-surface transition-all duration-300 ease-in-out font-body-md text-body-md border-l-[3px] border-transparent"
             >
               <Settings className="w-5 h-5" />

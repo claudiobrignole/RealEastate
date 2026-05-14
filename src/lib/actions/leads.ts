@@ -1,14 +1,15 @@
 'use server';
 
-import { serverDb } from '../firebase-server';
-import { collection, collectionGroup, addDoc, getDocs, orderBy, query, serverTimestamp } from 'firebase/firestore/lite';
+import { serverDb } from '@/lib/firebase-server';
+import { collection, collectionGroup, addDoc, getDocs, getDoc, doc, orderBy, query, where, serverTimestamp } from 'firebase/firestore/lite';
+import { getTenantId } from './auth';
 
 export async function createLead(prevState: any, formData: FormData) {
   try {
     const projectId = formData.get('projectId') as string;
     const firstName = formData.get('firstName') as string || '';
     const lastName = formData.get('lastName') as string || '';
-    const name = formData.get('name') as string || ''; // fallback if single name field
+    const name = formData.get('name') as string || ''; 
     const email = formData.get('email') as string || '';
     const phone = formData.get('phone') as string || '';
     const message = formData.get('message') as string || '';
@@ -21,6 +22,12 @@ export async function createLead(prevState: any, formData: FormData) {
       return { success: false, error: 'Email è obbligatoria' };
     }
 
+    const projectDoc = await getDoc(doc(serverDb, 'projects', projectId));
+    if (!projectDoc.exists()) {
+      return { success: false, error: 'Progetto non trovato' };
+    }
+    const tenantId = projectDoc.data()?.tenantId;
+
     const leadsRef = collection(serverDb, 'projects', projectId, 'leads');
     await addDoc(leadsRef, {
       firstName,
@@ -31,7 +38,8 @@ export async function createLead(prevState: any, formData: FormData) {
       message,
       createdAt: serverTimestamp(),
       source: 'landing_page',
-      projectId
+      projectId,
+      tenantId
     });
 
     return { success: true, message: 'Richiesta inviata con successo!' };
@@ -43,17 +51,26 @@ export async function createLead(prevState: any, formData: FormData) {
 
 export async function getLeads(projectId?: string) {
   try {
-    let q;
+    const tenantId = await getTenantId();
+    if (!tenantId) return { success: false, error: 'Unauthorized' };
+    
+    let snapshot;
     if (projectId) {
-      const leadsRef = collection(serverDb, 'projects', projectId, 'leads');
-      q = query(leadsRef, orderBy('createdAt', 'desc'));
+      const q = query(
+        collection(serverDb, 'projects', projectId, 'leads'),
+        where('tenantId', '==', tenantId),
+        orderBy('createdAt', 'desc')
+      );
+      snapshot = await getDocs(q);
     } else {
-      const leadsGroupRef = collectionGroup(serverDb, 'leads');
-      q = query(leadsGroupRef, orderBy('createdAt', 'desc'));
+      const q = query(
+        collectionGroup(serverDb, 'leads'),
+        where('tenantId', '==', tenantId),
+        orderBy('createdAt', 'desc')
+      );
+      snapshot = await getDocs(q);
     }
 
-    const snapshot = await getDocs(q);
-    
     const leads = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -80,11 +97,16 @@ export async function submitLead(data: {
   message?: string;
 }) {
   try {
+    const projectDoc = await getDoc(doc(serverDb, 'projects', data.projectId));
+    if (!projectDoc.exists()) throw new Error('Project not found');
+    const tenantId = projectDoc.data()?.tenantId;
+
     await addDoc(collection(serverDb, 'leads'), {
       ...data,
       source: 'landing_form',
       status: 'new',
       createdAt: serverTimestamp(),
+      tenantId
     });
     return { success: true };
   } catch (error: any) {

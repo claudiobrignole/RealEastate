@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { storage } from '@/lib/firebase';
+import { storage, auth } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { signInAnonymously } from 'firebase/auth';
 
 interface ImageUploaderProps {
   onUploadComplete: (url: string) => void;
@@ -17,13 +18,18 @@ export default function ImageUploader({ onUploadComplete }: ImageUploaderProps) 
 
     setIsUploading(true);
     try {
+      // Ensure user is signed in anonymously to allow storage access
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
+      
       const storageRef = ref(storage, `projects/images/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       onUploadComplete(url);
     } catch (error) {
       console.error("Error uploading image:", error);
-      alert("Error uploading image");
+      alert("Errore durante il caricamento dell'immagine. Riprova.");
     } finally {
       setIsUploading(false);
     }

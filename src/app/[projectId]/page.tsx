@@ -58,7 +58,8 @@ export default async function PublicProjectPage({
 
   return (
     <main className="min-h-screen bg-surface">
-      <ThemeComponent data={{...content, projectId}} />
+      <ThemeComponent data={{...content, projectId, blocks: projectData.blocks || []}} />
     </main>
   );
 }
+

@@ -42,11 +42,20 @@ export default async function ProjectsPage() {
             // Generate a random-looking but deterministic leads number for the UI mockup
             const mockLeads = project.id ? (project.id.charCodeAt(0) * project.id.charCodeAt(1)) % 150 : 0;
             
+            // Extract the first image from blocks if possible
+            let coverImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuAcLyYSfg-vUbyHCe2vvXUuIHM1BMqW4DCucdD3NieVCPo8MbJzyWqogw97yetAfNyXzxUj2vskGIxtNdl99bq2BUGTy-mI-Y7i7fOc_1tXwrNLOluWajIwNojKhkbsBfyDxLZ7_6_i_CinP07xUNiIB29JloatSUNfbob-pdeRiRbwRYjuFM_TL_flleXvYLxTzKgDxMIyzQq7d0NMZA91HrT7Y4Gse5HC-38CQkAPZI-oeQ5CSaoGpqJVYu1w0lnsn6ZQobRnkpQ";
+            if (project.blocks && project.blocks.length > 0) {
+              const imageBlock = project.blocks.find((b: any) => b.data && b.data.imageUrl);
+              if (imageBlock) {
+                coverImage = imageBlock.data.imageUrl;
+              }
+            }
+            
             return (
               <Link href={publicUrl} target="_blank" key={project.id} className="group bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden hover:border-tertiary transition-all duration-300 relative flex flex-col">
                 <div className="absolute top-0 left-0 w-full h-1 bg-tertiary opacity-0 group-hover:opacity-100 transition-opacity z-10"></div>
                 <div className="h-64 relative overflow-hidden flex-shrink-0">
-                  <img alt={defaultContent.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcLyYSfg-vUbyHCe2vvXUuIHM1BMqW4DCucdD3NieVCPo8MbJzyWqogw97yetAfNyXzxUj2vskGIxtNdl99bq2BUGTy-mI-Y7i7fOc_1tXwrNLOluWajIwNojKhkbsBfyDxLZ7_6_i_CinP07xUNiIB29JloatSUNfbob-pdeRiRbwRYjuFM_TL_flleXvYLxTzKgDxMIyzQq7d0NMZA91HrT7Y4Gse5HC-38CQkAPZI-oeQ5CSaoGpqJVYu1w0lnsn6ZQobRnkpQ" />
+                  <img alt={defaultContent.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src={coverImage} />
                   <div className="absolute top-sm right-sm flex space-x-xs">
                     <span className="bg-surface/90 text-tertiary font-label-caps text-label-caps px-2 py-1 rounded-sm backdrop-blur-sm border border-outline-variant/50 flex items-center space-x-1">
                       <span className="w-2 h-2 rounded-full bg-tertiary"></span>

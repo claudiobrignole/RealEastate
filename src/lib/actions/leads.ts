@@ -54,30 +54,49 @@ export async function getLeads(projectId?: string) {
     const tenantId = await getTenantId();
     if (!tenantId) return { success: false, error: 'Unauthorized' };
     
-    let snapshot;
+    let leads: any[] = [];
     if (projectId) {
       const q = query(
         collection(serverDb, 'projects', projectId, 'leads'),
         where('tenantId', '==', tenantId),
         orderBy('createdAt', 'desc')
       );
-      snapshot = await getDocs(q);
+      const snapshot = await getDocs(q);
+      leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } else {
-      const q = query(
+      // Query collectionGroup for project leads
+      const qGroup = query(
         collectionGroup(serverDb, 'leads'),
         where('tenantId', '==', tenantId),
         orderBy('createdAt', 'desc')
       );
-      snapshot = await getDocs(q);
-    }
+      // Query root collection for meta leads (and others)
+      const qRoot = query(
+        collection(serverDb, 'leads'),
+        where('tenantId', '==', tenantId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const [snapshotGroup, snapshotRoot] = await Promise.all([
+        getDocs(qGroup),
+        getDocs(qRoot)
+      ]);
 
-    const leads = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-      };
-    });
+      const leadsMap = new Map();
+      
+      // Deduplicate merging
+      snapshotGroup.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
+      snapshotRoot.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
+      
+      leads = Array.from(leadsMap.values());
+      
+      // Sort descending by createdAt
+      leads.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        return timeB - timeA;
+      });
+    }
 
     return { success: true, data: leads };
   } catch (error: any) {

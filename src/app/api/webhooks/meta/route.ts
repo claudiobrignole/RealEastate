@@ -1,7 +1,74 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const VERIFY_TOKEN = 'unitleads_meta_secure_webhook_2026';
+
+async function processMetaWebhook(body: any) {
+  try {
+    const entries = body.entry || [];
+    for (const entry of entries) {
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        if (change.field === 'leadgen') {
+          const leadgenId = change.value.leadgen_id;
+          if (!leadgenId) continue;
+
+          console.log(`Processing Meta Leadgen ID: ${leadgenId}`);
+          const token = process.env.META_ACCESS_TOKEN;
+          if (!token) {
+            console.error('META_ACCESS_TOKEN is missing');
+            return;
+          }
+
+          // 1. Fetch Lead from Graph API
+          const leadRes = await fetch(`https://graph.facebook.com/v19.0/${leadgenId}?fields=field_data,ad_name,campaign_name&access_token=${token}`);
+          if (!leadRes.ok) {
+            console.error('Failed to fetch lead from Meta:', await leadRes.text());
+            continue;
+          }
+
+          const leadData = await leadRes.json();
+          let email = '';
+          let name = '';
+          let phone = '';
+
+          (leadData.field_data || []).forEach((field: any) => {
+            const val = field.values[0];
+            if (field.name.includes('email')) email = val;
+            else if (field.name.includes('name')) name = val;
+            else if (field.name.includes('phone')) phone = val;
+          });
+
+          // 2. Resolve TenantId
+          // Hardcoded or inferred. For now, fetch first tenant with metaConnected
+          const tenantsQuery = await adminDb.collection('tenants').where('metaConnected', '==', true).limit(1).get();
+          const tenantId = tenantsQuery.empty ? null : tenantsQuery.docs[0].id;
+
+          // 3. Save to CRM "leads" collection
+          const newLead = {
+            name,
+            email,
+            phone,
+            campaignName: leadData.campaign_name || '',
+            adName: leadData.ad_name || '',
+            source: 'meta_ads',
+            createdAt: FieldValue.serverTimestamp(),
+            status: 'new',
+            tenantId,
+            metaLeadId: leadData.id,
+            rawWebhookData: change.value
+          };
+
+          await adminDb.collection('leads').add(newLead);
+          console.log(`Successfully mapped and saved Meta lead: ${leadData.id}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error processing Meta webhook background task:', error);
+  }
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -27,8 +94,13 @@ export async function POST(request: Request) {
     // Store the raw webhook event
     await adminDb.collection('webhook_events').add({
       payload: body,
-      createdAt: new Date().toISOString(),
+      createdAt: FieldValue.serverTimestamp(),
       source: 'meta'
+    });
+
+    // Start background processing without awaiting to respond quickly to Meta
+    processMetaWebhook(body).catch((err) => {
+      console.error('Unhandled error in processMetaWebhook:', err);
     });
 
     // Acknowledge receipt to Meta quickly to avoid timeouts

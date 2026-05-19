@@ -28,7 +28,7 @@ export async function createLead(prevState: any, formData: FormData) {
     }
     const tenantId = projectDoc.data()?.tenantId;
 
-    const leadsRef = collection(serverDb, 'projects', projectId, 'leads');
+    const leadsRef = collection(serverDb, 'leads');
     await addDoc(leadsRef, {
       firstName,
       lastName,
@@ -56,21 +56,43 @@ export async function getLeads(projectId?: string) {
     
     let leads: any[] = [];
     if (projectId) {
-      const q = query(
+      // Legacy path
+      const qLegacy = query(
         collection(serverDb, 'projects', projectId, 'leads'),
         where('tenantId', '==', tenantId),
         orderBy('createdAt', 'desc')
       );
-      const snapshot = await getDocs(q);
-      leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // New root collection path
+      const qRoot = query(
+        collection(serverDb, 'leads'),
+        where('tenantId', '==', tenantId),
+        where('projectId', '==', projectId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const [snapLegacy, snapRoot] = await Promise.all([
+        getDocs(qLegacy),
+        getDocs(qRoot)
+      ]);
+      
+      const leadsMap = new Map();
+      snapLegacy.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
+      snapRoot.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
+      
+      leads = Array.from(leadsMap.values());
+      leads.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        return timeB - timeA;
+      });
     } else {
-      // Query collectionGroup for project leads
+      // Query collectionGroup for legacy project leads
       const qGroup = query(
         collectionGroup(serverDb, 'leads'),
         where('tenantId', '==', tenantId),
         orderBy('createdAt', 'desc')
       );
-      // Query root collection for meta leads (and others)
+      // Query root collection for new unified leads (Meta & new landing page leads)
       const qRoot = query(
         collection(serverDb, 'leads'),
         where('tenantId', '==', tenantId),
@@ -78,8 +100,8 @@ export async function getLeads(projectId?: string) {
       );
       
       const [snapshotGroup, snapshotRoot] = await Promise.all([
-        getDocs(qGroup),
-        getDocs(qRoot)
+        getDocs(qGroup).catch(() => ({ docs: [] })), // Fallback if index is missing
+        getDocs(qRoot).catch(() => ({ docs: [] }))
       ]);
 
       const leadsMap = new Map();

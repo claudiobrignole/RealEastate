@@ -40,10 +40,23 @@ async function processMetaWebhook(body: any) {
             else if (field.name.includes('phone')) phone = val;
           });
 
-          // 2. Resolve TenantId
-          // Hardcoded or inferred. For now, fetch first tenant with metaConnected
-          const tenantsQuery = await adminDb.collection('tenants').where('metaConnected', '==', true).limit(1).get();
-          const tenantId = tenantsQuery.empty ? null : tenantsQuery.docs[0].id;
+          // 2. Resolve TenantId Deterministically
+          const pageId = change.value.page_id;
+          if (!pageId) {
+            console.error('Meta webhook payload missing page_id');
+            continue;
+          }
+
+          const tenantsQuery = await adminDb.collection('tenants')
+            .where('metaPageId', '==', pageId)
+            .limit(1)
+            .get();
+
+          if (tenantsQuery.empty) {
+            console.error(`No tenant found configured for Meta Page ID: ${pageId}`);
+            continue;
+          }
+          const tenantId = tenantsQuery.docs[0].id;
 
           // 3. Save to CRM "leads" collection
           const newLead = {

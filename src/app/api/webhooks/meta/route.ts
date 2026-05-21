@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
-const VERIFY_TOKEN = 'unitleads_meta_secure_webhook_2026';
+const VERIFY_TOKEN = 'zeroagenzia_meta_secure_webhook_2026';
+const LEGACY_VERIFY_TOKEN = 'unitleads_meta_secure_webhook_2026';
 
 async function processMetaWebhook(body: any) {
   try {
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
   const challenge = searchParams.get('hub.challenge');
 
   if (mode && token) {
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    if (mode === 'subscribe' && (token === VERIFY_TOKEN || token === LEGACY_VERIFY_TOKEN)) {
       return new NextResponse(challenge, { status: 200 });
     } else {
       return new NextResponse('Forbidden', { status: 403 });

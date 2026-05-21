@@ -13,6 +13,8 @@ const themes: Record<string, React.ComponentType<any>> = {
   'landing_variant_4': ThemeVariant4,
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function PublicProjectPage({
   params,
   searchParams,

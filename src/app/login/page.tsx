@@ -50,7 +50,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-surface items-center justify-center p-4">
       <div className="bg-surface-container-lowest p-8 rounded-lg shadow-lg max-w-md w-full border border-outline-variant">
-        <h1 className="text-h2 font-h1 text-primary text-center mb-2">UnitLeads</h1>
+        <h1 className="text-h2 font-h1 text-primary text-center mb-2">ZeroAgenzia</h1>
         <p className="text-body-md text-on-surface-variant text-center mb-8">Accedi al tuo account CRM</p>
         
         {error && <div className="mb-4 p-3 bg-error-container text-on-error-container rounded text-body-sm">{error}</div>}

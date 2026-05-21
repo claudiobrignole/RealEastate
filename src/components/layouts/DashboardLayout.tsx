@@ -54,10 +54,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           <div>
             <h1 className="font-label-caps text-label-caps tracking-widest text-on-surface">
-              AURELIAN
+              ZEROAGENZIA
             </h1>
             <h2 className="font-label-caps text-label-caps tracking-widest text-secondary">
-              RESERVE
+              CASA
             </h2>
             <hr className="border-t-[1px] border-outline-variant mt-md mb-md" />
           </div>

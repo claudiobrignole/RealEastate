@@ -13,8 +13,8 @@ const notoSerif = Noto_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "UnitLeads - Luxury Real Estate CRM",
-  description: "Real Estate Lead Management",
+  title: "ZeroAgenzia - CRM Immobiliare & Lead Builder",
+  description: "Piattaforma CRM & Landing Page Builder per la Lead Generation Immobiliare",
 };
 
 export default function RootLayout({

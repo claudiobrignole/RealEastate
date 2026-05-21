@@ -1,6 +1,8 @@
 {
-  "name": "Homeleads",
-  "description": "Real Estate Lead Management",
+  "name": "ZeroAgenzia.casa",
+  "description": "ZeroAgenzia Lead CRM & Page Builder Platform",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

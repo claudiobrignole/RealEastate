@@ -1,8 +1,52 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    }
+    
+    function belongsToTenant(tenantId) {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isAuthenticated() && (isSuperAdmin() || request.auth.uid == userId);
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isAuthenticated() && (belongsToTenant(tenantId) || isSuperAdmin());
+      allow write: if isAuthenticated() && isSuperAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read, write: if isAuthenticated() && (
+        (resource != null && belongsToTenant(resource.data.tenantId)) ||
+        (request.resource != null && belongsToTenant(request.resource.data.tenantId)) ||
+        isSuperAdmin()
+      );
+    }
+
+    match /leads/{leadId} {
+      allow read, write: if isAuthenticated() && (
+        (resource != null && belongsToTenant(resource.data.tenantId)) ||
+        (request.resource != null && belongsToTenant(request.resource.data.tenantId)) ||
+        isSuperAdmin()
+      );
+    }
+
+    match /webhook_events/{eventId} {
+      allow write: if true;
+      allow read: if isAuthenticated() && isSuperAdmin();
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated() && isSuperAdmin();
     }
   }
 }

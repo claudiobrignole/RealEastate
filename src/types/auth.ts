@@ -15,4 +15,7 @@ export interface TenantData {
   maxUsers: number;
   currentUserCount: number;
   createdAt: string;
+  metaPageId?: string;
+  metaAccessToken?: string;
+  metaConnected?: boolean;
 }

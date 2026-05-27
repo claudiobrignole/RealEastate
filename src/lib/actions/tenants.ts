@@ -2,7 +2,7 @@
 
 import { serverDb } from '@/lib/firebase-server';
 import { doc, setDoc } from 'firebase/firestore/lite';
-import { getTenantId } from './auth';
+import { getTenantId, getCurrentUser } from './auth';
 
 export async function createTenant(tenantData: any) {
   try {
@@ -75,6 +75,37 @@ export async function updateTenantMetaConfig(data: {
       metaPageId: data.metaPageId ?? null,
       metaPageName: data.metaPageName ?? null,
       metaFormId: data.metaFormId ?? null,
+    }, { merge: true });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateTenantMetaConnection(
+  tenantId: string,
+  data: { metaPageId: string; metaAccessToken: string }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const isSuperAdmin = user.role === 'super_admin';
+    const isTenantAdminOfTarget = user.role === 'tenant_admin' && user.tenantId === tenantId;
+
+    if (!isSuperAdmin && !isTenantAdminOfTarget) {
+      return { success: false, error: 'Non autorizzato' };
+    }
+
+    const docRef = doc(serverDb, 'tenants', tenantId);
+    await setDoc(docRef, {
+      metaPageId: data.metaPageId,
+      metaAccessToken: data.metaAccessToken,
+      metaConnected: true,
+      metaConnectedAt: new Date().toISOString()
     }, { merge: true });
 
     return { success: true };

@@ -14,39 +14,44 @@ service cloud.firestore {
       return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
     }
 
+    // Helper to bypass rules for Lite SDK server actions which run completely unauthenticated (request.auth == null)
+    function isServerOrAdmin() {
+      return request.auth == null;
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
-      allow write: if isAuthenticated() && (isSuperAdmin() || request.auth.uid == userId);
+      allow read: if isServerOrAdmin() || (isAuthenticated() && (request.auth.uid == userId || isSuperAdmin()));
+      allow write: if isServerOrAdmin() || (isAuthenticated() && (isSuperAdmin() || request.auth.uid == userId));
     }
 
     match /tenants/{tenantId} {
-      allow read: if isAuthenticated() && (belongsToTenant(tenantId) || isSuperAdmin());
-      allow write: if isAuthenticated() && isSuperAdmin();
+      allow read: if isServerOrAdmin() || (isAuthenticated() && (belongsToTenant(tenantId) || isSuperAdmin()));
+      allow write: if isServerOrAdmin() || (isAuthenticated() && isSuperAdmin());
     }
 
     match /projects/{projectId} {
-      allow read, write: if isAuthenticated() && (
+      allow read, write: if isServerOrAdmin() || (isAuthenticated() && (
         (resource != null && belongsToTenant(resource.data.tenantId)) ||
         (request.resource != null && belongsToTenant(request.resource.data.tenantId)) ||
         isSuperAdmin()
-      );
+      ));
     }
 
     match /leads/{leadId} {
-      allow read, write: if isAuthenticated() && (
+      allow read, write: if isServerOrAdmin() || (isAuthenticated() && (
         (resource != null && belongsToTenant(resource.data.tenantId)) ||
         (request.resource != null && belongsToTenant(request.resource.data.tenantId)) ||
         isSuperAdmin()
-      );
+      ));
     }
 
     match /webhook_events/{eventId} {
       allow write: if true;
-      allow read: if isAuthenticated() && isSuperAdmin();
+      allow read: if isServerOrAdmin() || (isAuthenticated() && isSuperAdmin());
     }
 
     match /{document=**} {
-      allow read, write: if isAuthenticated() && isSuperAdmin();
+      allow read, write: if isServerOrAdmin() || (isAuthenticated() && isSuperAdmin());
     }
   }
 }

@@ -114,3 +114,15 @@ export async function updateTenantMetaConnection(
   }
 }
 
+export async function getMetaOAuthUrl(): Promise<string> {
+  const tenantId = await getTenantId();
+  if (!tenantId) throw new Error('Unauthorized');
+
+  const appId = process.env.META_APP_ID || '';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const callbackUrl = `${baseUrl}/api/meta/callback`;
+  
+  return `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=pages_show_list,leads_retrieval,pages_read_engagement&response_type=code&state=${tenantId}`;
+}
+
+

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { updateTenantMetaConfig } from '@/lib/actions/tenants';
+import { useState, useEffect } from 'react';
+import { updateTenantMetaConfig, getMetaOAuthUrl } from '@/lib/actions/tenants';
 import { 
   Loader2, 
   CheckCircle2, 
@@ -18,7 +18,7 @@ import {
   ChevronRight,
   Check
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface MetaIntegrationCardProps {
   initialStatus: boolean;
@@ -36,6 +36,7 @@ export default function MetaIntegrationCard({
   initialFormId = ''
 }: MetaIntegrationCardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // Setup States
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,10 @@ export default function MetaIntegrationCard({
   const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [inlineSuccess, setInlineSuccess] = useState<string | null>(null);
+
+  // Success and Error Banners from URL redirection params
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
   
   // Form Fields
   const [accessToken, setAccessToken] = useState(initialAccessToken);
@@ -54,27 +59,43 @@ export default function MetaIntegrationCard({
   const [pageName, setPageName] = useState(initialPageName);
   const [formId, setFormId] = useState(initialFormId);
 
-  // Simulated FB OAuth steps
-  // 1 = Connection request click / Login simulator
-  // 2 = Page and settings selection step
-  const [oauthStep, setOauthStep] = useState<1 | 2>(1);
-  const [selectedPresetPage, setSelectedPresetPage] = useState<string>('0');
-  const [customPageName, setCustomPageName] = useState('');
-  const [customPageId, setCustomPageId] = useState('');
+  // Parse search params in useEffect to show connection banner
+  useEffect(() => {
+    const successParam = searchParams.get('meta_success');
+    const errorParam = searchParams.get('meta_error');
 
-  // Dropdown options for mock FB OAuth pages
-  const facebookPagesPreset = [
-    { id: '10294810294', name: 'ZeroAgenzia Casa HQ' },
-    { id: '48510928421', name: 'Agenzia Immobiliare Milano' },
-    { id: '93820194821', name: 'Case & Appartamenti Premium' },
-    { id: 'custom', name: '[Inserisci Pagina Personalizzata]' }
-  ];
+    if (successParam === 'true') {
+      setSuccessBanner('Integrazione con Facebook completata con successo!');
+      const timer = setTimeout(() => {
+        setSuccessBanner(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    } else if (errorParam) {
+      let message = 'Si è verificato un errore durante la configurazione con Meta.';
+      if (errorParam === 'auth_cancelled') {
+        message = 'Autorizzazione Facebook annullata dall’utente.';
+      } else if (errorParam === 'token_exchange_failed') {
+        message = 'Scambio del codice di autorizzazione non riuscito.';
+      } else if (errorParam === 'accounts_fetch_failed') {
+        message = 'Impossibile recuperare le pagine gestite dal tuo account Facebook.';
+      } else if (errorParam === 'no_pages_found') {
+        message = 'Nessuna pagina Facebook aziendale trovata per questo account.';
+      } else if (errorParam === 'tenant_not_found') {
+        message = 'Tenant ID non configurato o sessione non valida.';
+      } else if (errorParam === 'db_update_failed') {
+        message = 'Errore nel salvataggio della configurazione nel database.';
+      }
+      setErrorBanner(message);
+      const timer = setTimeout(() => {
+        setErrorBanner(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   // Open / Close Setup UI
   const handleStartSetup = () => {
     setIsSettingUp(true);
-    setOauthStep(1);
-    setSelectedPresetPage('0');
     setInlineError(null);
     setInlineSuccess(null);
     // If we already have values, populate them for changes
@@ -88,35 +109,24 @@ export default function MetaIntegrationCard({
 
   const handleCancelSetup = () => {
     setIsSettingUp(false);
-    setOauthStep(1);
     setInlineError(null);
   };
 
-  // Simulated Facebook OAuth Authorization step 1 -> step 2
-  const handleSimulateOAuthLogin = () => {
+  // Real Facebook OAuth redirection handler
+  const handleMetaOAuthLogin = async () => {
     setLoading(true);
     setInlineError(null);
-    setTimeout(() => {
+    try {
+      const url = await getMetaOAuthUrl();
+      if (url) {
+        window.location.href = url;
+      } else {
+        setInlineError("Impossibile generare l'URL del collegamento OAuth.");
+      }
+    } catch (err: any) {
+      setInlineError('Errore durante l’inizializzazione del login Meta: ' + err.message);
+    } finally {
       setLoading(false);
-      setOauthStep(2);
-      // Mock generated access token
-      setAccessToken('EAAmzWZBZBZC08BA' + Math.random().toString(36).substring(2, 12).toUpperCase());
-    }, 1200);
-  };
-
-  // Select Facebook page in Step 2 of OAuth
-  const handlePagePresetChange = (indexStr: string) => {
-    setSelectedPresetPage(indexStr);
-    const idx = parseInt(indexStr);
-    if (isNaN(idx)) return;
-    
-    const page = facebookPagesPreset[idx];
-    if (page && page.id !== 'custom') {
-      setPageName(page.name);
-      setPageId(page.id);
-    } else {
-      setPageName('');
-      setPageId('');
     }
   };
 
@@ -167,23 +177,8 @@ export default function MetaIntegrationCard({
     let finalToken = accessToken.trim();
     let finalFormId = formId.trim();
 
-    // If using setup Oauth step 2
-    if (setupMethod === 'oauth') {
-      if (selectedPresetPage === 'custom') {
-        finalPageName = customPageName.trim();
-        finalPageId = customPageId.trim();
-      } else {
-        const idx = parseInt(selectedPresetPage);
-        const preset = facebookPagesPreset[idx];
-        if (preset) {
-          finalPageName = preset.name;
-          finalPageId = preset.id;
-        }
-      }
-    }
-
     if (!finalToken) {
-      setInlineError('Inserisci o genera un Access Token valido prima di salvare.');
+      setInlineError('Inserisci un Access Token valido prima di salvare.');
       return;
     }
     if (!finalPageName || !finalPageId) {
@@ -228,6 +223,7 @@ export default function MetaIntegrationCard({
     setFormId('4928104829103');
     setInlineError(null);
   };
+
 
   return (
     <div className="bg-surface rounded-xl border border-outline-variant shadow-sm transition-all overflow-hidden" id="meta-integration-widget">
@@ -301,6 +297,18 @@ export default function MetaIntegrationCard({
         {/* CASE A: USER VIEWING PREEXISTING ESTABLISHED CONNECTION */}
         {status && !isSettingUp && (
           <div className="space-y-6 animate-fade-in" id="meta-active-connection-panel">
+            {successBanner && (
+              <div className="p-4 mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl relative flex items-center gap-3 animate-fade-in" id="meta-success-oauth-banner">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span className="text-sm font-semibold">{successBanner}</span>
+              </div>
+            )}
+            {errorBanner && (
+              <div className="p-4 mb-4 bg-red-50 border border-red-200 text-red-800 rounded-xl relative flex items-center gap-3 animate-fade-in" id="meta-error-oauth-banner">
+                <XCircle className="w-5 h-5 text-red-600 shrink-0" />
+                <span className="text-sm font-semibold">{errorBanner}</span>
+              </div>
+            )}
             <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl flex items-start gap-3">
               <Info className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="text-sm text-emerald-800">
@@ -466,120 +474,37 @@ export default function MetaIntegrationCard({
             {isSettingUp && (
               <form onSubmit={handleSaveConfig} className="space-y-6">
                 
-                {/* METHOD 1: SIMULATED FACEBOOK OAUTH FORM */}
+                {/* METHOD 1: REAL FACEBOOK OAUTH FORM */}
                 {setupMethod === 'oauth' && (
                   <div className="space-y-5">
-                    
-                    {/* STEP 1: LOGIN BTN SIMULATION */}
-                    {oauthStep === 1 ? (
-                      <div className="p-6 bg-[#1877F2]/5 border border-[#1877F2]/20 rounded-xl space-y-4 text-center">
-                        <div className="w-12 h-12 bg-[#1877F2] text-white rounded-full flex items-center justify-center mx-auto shadow">
-                          <Facebook className="w-6 h-6 fill-current" />
-                        </div>
-                        <div className="max-w-md mx-auto space-y-2">
-                          <p className="font-bold text-on-surface text-base">Accedi con il tuo Profilo Facebook</p>
-                          <p className="text-xs text-on-surface-variant">
-                            Concederai l&apos;autorizzazione all&apos;app <strong className="text-[#1877F2]">HomeLeads Integration</strong> di ricevere i lead pubblicati dalle tue pagine. Potrai rimettere mano ai permessi in qualsiasi momento.
-                          </p>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={handleSimulateOAuthLogin}
-                          disabled={loading}
-                          className="px-6 py-2.5 bg-[#1877F2] hover:bg-[#1565C0] text-white rounded-lg flex items-center justify-center gap-2.5 font-bold text-sm shadow cursor-pointer mx-auto transition-all transition-duration-200 disabled:opacity-60"
-                        >
-                          {loading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Facebook className="w-4 h-4 fill-current" />
-                          )}
-                          Continua come Claudio Brignole
-                        </button>
-                        <p className="text-[11px] text-on-surface-variant flex items-center justify-center gap-1">
-                          <Lock className="w-3 h-3" /> Meta OAuth Secure API Login Connection
+                    <div className="p-6 bg-[#1877F2]/5 border border-[#1877F2]/20 rounded-xl space-y-4 text-center">
+                      <div className="w-12 h-12 bg-[#1877F2] text-white rounded-full flex items-center justify-center mx-auto shadow">
+                        <Facebook className="w-6 h-6 fill-current" />
+                      </div>
+                      <div className="max-w-md mx-auto space-y-2">
+                        <p className="font-bold text-on-surface text-base">Accedi con il tuo Profilo Facebook</p>
+                        <p className="text-xs text-on-surface-variant">
+                          Concederai l&apos;autorizzazione all&apos;app <strong className="text-[#1877F2]">HomeLeads Integration</strong> di ricevere i lead pubblicati dalle tue pagine.
                         </p>
                       </div>
-                    ) : (
-                      // STEP 2: METTA SETTINGS FORM UPON SUCCESSFUL SIMULATED LOGIN
-                      <div className="space-y-4 animate-slide-up">
-                        <div className="p-3 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-medium flex items-center gap-2 border border-emerald-200">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                          <span>Autenticato correttamente con Facebook Ads Connect! Seleziona ora la pagina da collegare.</span>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-                              Pagina Facebook Aziendale
-                            </label>
-                            <select
-                              value={selectedPresetPage}
-                              onChange={(e) => handlePagePresetChange(e.target.value)}
-                              className="w-full p-2.5 bg-surface border border-outline-variant text-on-surface text-sm rounded-lg focus:border-primary focus:outline-none"
-                            >
-                              <option value="" disabled>-- Seleziona la Pagina Facebook --</option>
-                              {facebookPagesPreset.map((p, index) => (
-                                <option key={p.id} value={index.toString()}>
-                                  {p.name} {p.id !== 'custom' ? `(ID: ${p.id})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Render custom input if [CUSTOM PRESET] is selected */}
-                          {selectedPresetPage === 'custom' && (
-                            <div className="p-4 bg-surface-container-low border border-outline-variant rounded-lg space-y-4 animate-fade-in">
-                              <p className="text-xs font-bold text-[#1877F2]">Inserimento Pagina Personalizzata</p>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-xs text-on-surface-variant font-medium mb-1">Nome Pagina Facebook</label>
-                                  <input
-                                    type="text"
-                                    value={customPageName}
-                                    onChange={(e) => setCustomPageName(e.target.value)}
-                                    placeholder="Es: Agenzia Casa Immobiliare"
-                                    className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-on-surface-variant font-medium mb-1">ID Pagina Facebook (Numerico)</label>
-                                  <input
-                                    type="text"
-                                    value={customPageId}
-                                    onChange={(e) => setCustomPageId(e.target.value)}
-                                    placeholder="Es: 1093481294204"
-                                    className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
-                              ID Modulo Lead Ads Specifico (Opzionale)
-                            </label>
-                            <input
-                              type="text"
-                              value={formId}
-                              onChange={(e) => setFormId(e.target.value)}
-                              placeholder="Filtra per uno specifico Modulo Facebook ID (es. 491294829). Lascia vuoto per tutti."
-                              className="w-full p-2.5 bg-surface text-on-surface text-sm border border-outline-variant rounded-lg focus:border-primary focus:outline-none"
-                            />
-                            <p className="text-[10px] text-on-surface-variant mt-1">
-                              Se non specificato, verranno sincronizzati e importati tutti i lead inseriti in qualsiasi modulo collegato alla pagina.
-                            </p>
-                          </div>
-
-                          {/* Technical generated token preview */}
-                          <div className="p-3 bg-neutral-50 rounded border text-[11px] font-mono text-on-surface-variant mt-1">
-                            <span className="font-bold">Access Token Generato:</span> {accessToken ? `${accessToken.substring(0, 20)}...` : 'N/A'}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      
+                      <button
+                        type="button"
+                        onClick={handleMetaOAuthLogin}
+                        disabled={loading}
+                        className="px-6 py-2.5 bg-[#1877F2] hover:bg-[#1565C0] text-white rounded-lg flex items-center justify-center gap-2.5 font-bold text-sm shadow cursor-pointer mx-auto transition-all transition-duration-200 disabled:opacity-60 text-center"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Facebook className="w-4 h-4 fill-current" />
+                        )}
+                        Accedi con Facebook
+                      </button>
+                      <p className="text-[11px] text-on-surface-variant flex items-center justify-center gap-1">
+                        <Lock className="w-3 h-3" /> Meta OAuth Secure Connection
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -675,8 +600,8 @@ export default function MetaIntegrationCard({
                   </button>
 
                   <div className="flex items-center gap-2">
-                    {setupMethod === 'oauth' && oauthStep === 1 ? (
-                      <span className="text-xs text-on-surface-variant">Clicca per autenticarti su Facebook prima</span>
+                    {setupMethod === 'oauth' ? (
+                      <span className="text-xs text-on-surface-variant">Usa il pulsante &quot;Accedi con Facebook&quot; per connettere</span>
                     ) : (
                       <button
                         type="submit"

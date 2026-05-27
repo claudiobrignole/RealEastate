@@ -26,7 +26,7 @@ import GalleryBlock from '@/components/blocks/GalleryBlock';
 
 type Language = 'it' | 'en' | 'fr' | 'de';
 
-function SortableBlockItem({ block, isActive, onClick }: { block: PageBlock, isActive: boolean, onClick: () => void }) {
+function SortableBlockItem({ block, isActive, onClick, onDelete }: { block: PageBlock, isActive: boolean, onClick: () => void, onDelete: () => void }) {
   const {
     attributes,
     listeners,
@@ -40,6 +40,17 @@ function SortableBlockItem({ block, isActive, onClick }: { block: PageBlock, isA
     transition,
   };
 
+  const getBlockLabelAndIcon = (type: BlockType) => {
+    switch (type) {
+      case 'hero': return '🖼 Hero';
+      case 'gallery': return '🎨 Gallery';
+      case 'editorial': return '📝 Editoriale';
+      case 'features': return '📋 Caratteristiche';
+      case 'form': return '✉️ Form';
+      default: return `Blocco ${type}`;
+    }
+  };
+
   return (
     <div 
       ref={setNodeRef} 
@@ -47,9 +58,23 @@ function SortableBlockItem({ block, isActive, onClick }: { block: PageBlock, isA
       {...attributes} 
       {...listeners} 
       onPointerDown={onClick}
-      className={cn("p-sm bg-surface-bright border rounded-DEFAULT mb-2 cursor-pointer font-body-md text-primary hover:border-tertiary/50 transition-colors", isActive ? "border-tertiary text-secondary shadow-sm" : "border-outline-variant")}
+      className={cn("group relative p-sm bg-surface-bright border rounded-DEFAULT mb-2 cursor-pointer font-body-md text-primary hover:border-tertiary/50 transition-colors flex items-center justify-between", isActive ? "border-tertiary text-secondary shadow-sm" : "border-outline-variant")}
     >
-      Blocco {block.type}
+      <span>{getBlockLabelAndIcon(block.type)}</span>
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="text-on-surface-variant hover:text-error text-lg font-bold leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container transition-all opacity-0 group-hover:opacity-100"
+        title="Elimina blocco"
+      >
+        &times;
+      </button>
     </div>
   );
 }
@@ -74,7 +99,10 @@ export default function NewProjectPage() {
   };
 
   const activeBlock = blocks.find(b => b.id === activeBlockId);
-  const theme = 'landing_variant_1';
+  const [theme, setTheme] = useState('landing_variant_1');
+  const [primaryColor, setPrimaryColor] = useState('#1a1a1a');
+  const [accentColor, setAccentColor] = useState('#c9a84c');
+  const [heroBgColor, setHeroBgColor] = useState('#f5f0e8');
   const [slug, setSlug] = useState('');
   
   const [content, setContent] = useState<Record<Language, LocalizedContent>>({
@@ -207,6 +235,7 @@ export default function NewProjectPage() {
         themeId: theme,
         content: content,
         blocks: blocks,
+        themeColors: { primary: primaryColor, accent: accentColor, heroBg: heroBgColor },
         status: 'draft'
       });
       if (res.success) {
@@ -285,6 +314,127 @@ export default function NewProjectPage() {
             </h3>
             
             <div className="flex flex-col gap-md">
+              {/* Tema Visivo Selection */}
+              <div>
+                <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                  Tema Visivo
+                </label>
+                <div className="grid grid-cols-2 gap-sm mb-md" id="theme-selector-grid">
+                  {themes.map((t) => {
+                    let previewColor = '#f5f0e8';
+                    let previewHasBorder = false;
+                    if (t.id === 'landing_variant_1') {
+                      previewColor = '#f5f0e8';
+                    } else if (t.id === 'landing_variant_2') {
+                      previewColor = '#1a1a2e';
+                    } else if (t.id === 'landing_variant_3') {
+                      previewColor = '#0d0d0d';
+                    } else if (t.id === 'landing_variant_4') {
+                      previewColor = '#ffffff';
+                      previewHasBorder = true;
+                    }
+
+                    const isSelected = theme === t.id;
+
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTheme(t.id)}
+                        className={cn(
+                          "flex flex-col p-sm rounded-DEFAULT border text-left transition-all cursor-pointer hover:border-tertiary/60",
+                          isSelected ? "border-tertiary ring-1 ring-tertiary bg-surface-container" : "border-outline-variant bg-surface-bright"
+                        )}
+                      >
+                        <span className="font-label-caps text-[11px] font-bold text-primary truncate mb-xs">
+                          {t.name.split(' (')[0]}
+                        </span>
+                        <div 
+                          className={cn(
+                            "w-full h-8 rounded-sm",
+                            previewHasBorder ? "border border-outline-variant" : ""
+                          )}
+                          style={{ backgroundColor: previewColor }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Colori Landing Page */}
+              <div className="space-y-sm mb-md">
+                <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+                  Colori Landing Page
+                </label>
+                
+                {/* Colore Primario */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-on-surface-variant font-medium">Colore Primario</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="w-10 h-10 border border-outline-variant rounded-DEFAULT cursor-pointer p-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={primaryColor}
+                      maxLength={7}
+                      onChange={(e) => {
+                        setPrimaryColor(e.target.value);
+                      }}
+                      className="flex-1 bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-mono text-xs text-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Colore Accent */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-on-surface-variant font-medium">Colore Accent</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      className="w-10 h-10 border border-outline-variant rounded-DEFAULT cursor-pointer p-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={accentColor}
+                      maxLength={7}
+                      onChange={(e) => {
+                        setAccentColor(e.target.value);
+                      }}
+                      className="flex-1 bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-mono text-xs text-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Sfondo Hero */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-on-surface-variant font-medium">Sfondo Hero</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={heroBgColor}
+                      onChange={(e) => setHeroBgColor(e.target.value)}
+                      className="w-10 h-10 border border-outline-variant rounded-DEFAULT cursor-pointer p-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={heroBgColor}
+                      maxLength={7}
+                      onChange={(e) => {
+                        setHeroBgColor(e.target.value);
+                      }}
+                      className="flex-1 bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-mono text-xs text-primary transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <div className="flex items-center justify-between mb-xs">
                   <label className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
@@ -325,6 +475,12 @@ export default function NewProjectPage() {
                             block={block} 
                             isActive={activeBlockId === block.id}
                             onClick={() => setActiveBlockId(block.id)}
+                            onDelete={() => {
+                              setBlocks(blocks.filter(b => b.id !== block.id));
+                              if (activeBlockId === block.id) {
+                                setActiveBlockId(null);
+                              }
+                            }}
                           />
                         ))
                       )}
@@ -709,6 +865,32 @@ export default function NewProjectPage() {
 
             {/* Inputs */}
             <div className="flex flex-col gap-md">
+              <div>
+                <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                  Titolo Principale ({activeLang.toUpperCase()})
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                  value={content[activeLang].title || ''}
+                  onChange={(e) => handleContentChange('title', e.target.value)}
+                  placeholder="Titolo principale della landing page"
+                />
+              </div>
+
+              <div>
+                <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
+                  Sottotitolo / Tagline ({activeLang.toUpperCase()})
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-surface-bright border border-outline-variant rounded-DEFAULT focus:ring-1 focus:ring-secondary focus:border-secondary px-sm py-2 font-body-md text-primary transition-all"
+                  value={content[activeLang].subtitle || ''}
+                  onChange={(e) => handleContentChange('subtitle', e.target.value)}
+                  placeholder="Sottotitolo / Tagline della landing page"
+                />
+              </div>
+
               <div className="flex-1 flex flex-col">
                 <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs tracking-wider">
                   Descrizione Estesa ({activeLang.toUpperCase()})

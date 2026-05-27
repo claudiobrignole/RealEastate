@@ -1,7 +1,7 @@
 'use server';
 
 import { serverDb } from '@/lib/firebase-server';
-import { collection, collectionGroup, addDoc, getDocs, getDoc, doc, orderBy, query, where, serverTimestamp } from 'firebase/firestore/lite';
+import { collection, collectionGroup, addDoc, getDocs, getDoc, doc, orderBy, query, where, serverTimestamp, updateDoc } from 'firebase/firestore/lite';
 import { getTenantId } from './auth';
 
 export async function createLead(prevState: any, formData: FormData) {
@@ -190,3 +190,99 @@ export async function submitLead(data: {
     return { success: false, error: error.message };
   }
 }
+
+export async function updateLeadStatus(leadId: string, status: string) {
+  try {
+    const tenantId = await getTenantId();
+    if (!tenantId) {
+      return { success: false, error: 'Non autorizzato' };
+    }
+    
+    const leadRef = doc(serverDb, 'leads', leadId);
+    await updateDoc(leadRef, { status });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateLeadStatus error:', error);
+    return { success: false, error: error.message || 'Errore durante l\'aggiornamento dello stato.' };
+  }
+}
+
+export async function getLeadStats() {
+  try {
+    const res = await getLeads();
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Impossibile caricare i lead' };
+    }
+    
+    const leads = res.data;
+    const total = leads.length;
+
+    const bySource = {
+      landing_page: 0,
+      meta_ads: 0,
+      landing_form: 0,
+      other: 0,
+    };
+
+    const byStatus = {
+      new: 0,
+      contacted: 0,
+      qualified: 0,
+      lost: 0,
+    };
+
+    let thisMonth = 0;
+
+    const startOfCurrentMonth = new Date();
+    startOfCurrentMonth.setDate(1);
+    startOfCurrentMonth.setHours(0, 0, 0, 0);
+
+    for (const lead of leads) {
+      const src = lead.source;
+      if (src === 'landing_page') {
+        bySource.landing_page++;
+      } else if (src === 'meta_ads') {
+        bySource.meta_ads++;
+      } else if (src === 'landing_form') {
+        bySource.landing_form++;
+      } else {
+        bySource.other++;
+      }
+
+      const stat = lead.status || 'new';
+      if (stat === 'new') {
+        byStatus.new++;
+      } else if (stat === 'contacted') {
+        byStatus.contacted++;
+      } else if (stat === 'qualified') {
+        byStatus.qualified++;
+      } else if (stat === 'lost') {
+        byStatus.lost++;
+      } else {
+        byStatus.new++;
+      }
+
+      if (lead.createdAt) {
+        const leadDate = new Date(lead.createdAt);
+        if (leadDate >= startOfCurrentMonth) {
+          thisMonth++;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        total,
+        bySource,
+        byStatus,
+        thisMonth
+      }
+    };
+  } catch (error: any) {
+    console.error('getLeadStats error:', error);
+    return { success: false, error: error.message || 'Errore durante il calcolo delle statistiche.' };
+  }
+}
+

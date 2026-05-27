@@ -1,164 +1,178 @@
-import { Download, Plus, MoreVertical, TrendingUp, TrendingDown, ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
+import { getLeadStats } from '@/lib/actions/leads';
+import { 
+  BarChart3, 
+  Settings, 
+  Users, 
+  Facebook, 
+  Globe, 
+  Info, 
+  Download 
+} from 'lucide-react';
 
-export default function CampaignsPage() {
+export default async function CampaignsPage() {
+  const statsRes = await getLeadStats();
+  
+  const stats = statsRes.success && statsRes.data ? statsRes.data : {
+    total: 0,
+    bySource: { landing_page: 0, meta_ads: 0, landing_form: 0, other: 0 },
+    byStatus: { new: 0, contacted: 0, qualified: 0, lost: 0 },
+    thisMonth: 0
+  };
+
+  const total = stats.total;
+
+  // Horizontal bar calculations mapping
+  const sourcesList = [
+    { key: 'meta_ads', label: 'Meta Ads (Facebook Co-lead)', count: stats.bySource.meta_ads || 0, color: 'bg-[#1877F2]' },
+    { key: 'landing_page', label: 'Landing Page (Visite)', count: stats.bySource.landing_page || 0, color: 'bg-emerald-600' },
+    { key: 'landing_form', label: 'Landing Form (Contatti)', count: stats.bySource.landing_form || 0, color: 'bg-teal-600' },
+    { key: 'other', label: 'Sorgente Altro', count: stats.bySource.other || 0, color: 'bg-neutral-500' }
+  ];
+
+  const statusList = [
+    { key: 'new', label: 'Nuovo (New)', count: stats.byStatus.new || 0, color: 'bg-blue-600' },
+    { key: 'contacted', label: 'Contattato (Contacted)', count: stats.byStatus.contacted || 0, color: 'bg-amber-500' },
+    { key: 'qualified', label: 'Qualificato (Qualified)', count: stats.byStatus.qualified || 0, color: 'bg-emerald-600' },
+    { key: 'lost', label: 'Perso (Lost)', count: stats.byStatus.lost || 0, color: 'bg-rose-500' }
+  ];
+
   return (
-    <div className="pt-12 p-margin min-h-screen max-w-7xl mx-auto">
-      <div className="flex justify-between items-end mb-lg mt-sm">
+    <div className="pt-12 px-margin pb-margin max-w-7xl mx-auto" id="admin-analytics-container">
+      {/* Page Header */}
+      <div className="flex justify-between items-end mb-8 mt-2">
         <div>
-          <p className="font-body-lg text-body-lg text-on-surface-variant mb-xs">Performance Summary</p>
-          <h2 className="font-h2 text-h2 text-primary">Q3 2023 Campaigns</h2>
+          <p className="font-body-lg text-body-lg text-on-surface-variant mb-1">Performance & Analytics</p>
+          <h2 className="font-h1 text-h1 text-primary">Report Acquisizione</h2>
         </div>
-        <div className="flex gap-sm">
-          <button className="px-md py-sm border border-outline-variant text-primary font-data-point text-data-point rounded-DEFAULT hover:bg-surface-container-low transition-colors flex items-center gap-xs">
-            <Download className="w-4 h-4" /> Export Report
-          </button>
-          <button className="px-md py-sm bg-primary text-on-primary font-data-point text-data-point rounded-DEFAULT hover:bg-surface-tint transition-colors flex items-center gap-xs shadow-[0_4px_14px_0_rgba(0,0,0,0.1)]">
-            <Plus className="w-4 h-4" /> New Campaign
-          </button>
-        </div>
+        <button className="px-5 py-2.5 border border-outline-variant text-primary font-semibold text-sm rounded-lg hover:bg-surface-container-low transition-colors flex items-center gap-2 shadow-sm" id="export-report-btn">
+          <Download className="w-4 h-4" /> Export Report
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-lg">
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-md relative overflow-hidden group">
-          <div className="flex justify-between items-start mb-sm">
-            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Total Spend</p>
+      {/* KPI 3-card Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="analytics-kpi-grid">
+        {/* KPI 1: Lead Totali */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm flex items-start justify-between" id="card-total-leads">
+          <div>
+            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-xs">Lead Totali</p>
+            <h3 className="text-3xl font-black text-primary mt-2">{stats.total}</h3>
+            <p className="text-[11px] text-on-surface-variant mt-1">Acquisiti nel database del CRM</p>
           </div>
-          <h3 className="font-h1 text-h1 text-primary mb-xs">€124.5k</h3>
-          <div className="flex items-center gap-xs text-body-sm font-body-sm">
-            <span className="text-tertiary flex items-center"><TrendingUp className="w-4 h-4 mr-1" /> +12.4%</span>
-            <span className="text-outline">vs last month</span>
-          </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
-            <div className="h-full bg-primary w-3/4"></div>
+          <div className="p-2.5 bg-primary/5 text-primary rounded-lg border border-primary/10">
+            <Users className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-md relative overflow-hidden group">
-          <div className="flex justify-between items-start mb-sm">
-            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Cost per Lead (CPL)</p>
+        {/* KPI 2: Da Meta Ads */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm flex items-start justify-between" id="card-meta-leads">
+          <div>
+            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-xs">Da Meta Ads</p>
+            <h3 className="text-3xl font-black text-primary mt-2">{stats.bySource.meta_ads || 0}</h3>
+            <p className="text-[11px] text-on-surface-variant mt-1">Sincronizzazione webhook Meta</p>
           </div>
-          <h3 className="font-h1 text-h1 text-primary mb-xs">€42.10</h3>
-          <div className="flex items-center gap-xs text-body-sm font-body-sm">
-            <span className="text-[#4a6b5d] flex items-center"><TrendingDown className="w-4 h-4 mr-1" /> -5.2%</span>
-            <span className="text-outline">vs last month</span>
+          <div className="p-2.5 bg-blue-500/10 text-blue-700 rounded-lg border border-blue-500/10">
+            <Facebook className="w-5 h-5" />
           </div>
         </div>
-      </div>
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-md mb-lg">
-        <div className="flex justify-between items-center mb-md border-b border-outline-variant pb-sm">
-          <h3 className="font-h3 text-h3 text-primary">Platform Comparison: Meta vs Google</h3>
-          <div className="flex gap-sm">
-            <div className="flex items-center gap-xs">
-              <div className="w-3 h-3 bg-primary rounded-full"></div>
-              <span className="font-label-caps text-label-caps text-on-surface-variant">Google Ads</span>
-            </div>
-            <div className="flex items-center gap-xs">
-              <div className="w-3 h-3 bg-tertiary rounded-full"></div>
-              <span className="font-label-caps text-label-caps text-on-surface-variant">Meta Ads</span>
-            </div>
+        {/* KPI 3: Da Landing Page */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm flex items-start justify-between" id="card-landing-leads">
+          <div>
+            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-xs">Da Landing Page</p>
+            <h3 className="text-3xl font-black text-primary mt-2">
+              {(stats.bySource.landing_page || 0) + (stats.bySource.landing_form || 0)}
+            </h3>
+            <p className="text-[11px] text-on-surface-variant mt-1">Form di contatto su Landing Page</p>
           </div>
-        </div>
-        
-        <div className="h-64 w-full relative flex items-end justify-between px-md pt-md">
-          <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-label-caps text-outline pb-6">
-            <span>100k</span>
-            <span>75k</span>
-            <span>50k</span>
-            <span>25k</span>
-            <span>0</span>
-          </div>
-          
-          <div className="absolute left-10 right-0 top-0 h-full flex flex-col justify-between pb-6 z-0">
-            <div className="w-full border-t border-surface-variant"></div>
-            <div className="w-full border-t border-surface-variant"></div>
-            <div className="w-full border-t border-surface-variant"></div>
-            <div className="w-full border-t border-surface-variant"></div>
-            <div className="w-full border-t border-surface-variant"></div>
-          </div>
-          
-          <div className="relative z-10 w-full flex justify-around pl-10 items-end h-[calc(100%-24px)]">
-            <div className="flex gap-xs items-end h-full">
-              <div className="w-8 bg-primary h-[60%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-              <div className="w-8 bg-tertiary h-[45%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-            </div>
-            <div className="flex gap-xs items-end h-full">
-              <div className="w-8 bg-primary h-[75%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-              <div className="w-8 bg-tertiary h-[55%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-            </div>
-            <div className="flex gap-xs items-end h-full">
-              <div className="w-8 bg-primary h-[65%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-              <div className="w-8 bg-tertiary h-[80%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-            </div>
-            <div className="flex gap-xs items-end h-full">
-              <div className="w-8 bg-primary h-[90%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-              <div className="w-8 bg-tertiary h-[70%] rounded-t-sm hover:opacity-80 transition-opacity"></div>
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-10 right-0 flex justify-around text-label-caps text-outline">
-            <span>Week 1</span>
-            <span>Week 2</span>
-            <span>Week 3</span>
-            <span>Week 4</span>
+          <div className="p-2.5 bg-emerald-500/10 text-emerald-700 rounded-lg border border-emerald-500/10">
+            <Globe className="w-5 h-5" />
           </div>
         </div>
       </div>
 
-      <div className="mb-lg">
-        <h3 className="font-h3 text-h3 text-primary mb-md">Active Campaigns Overview</h3>
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="border-b border-outline-variant bg-surface-container-low">
-                <th className="py-sm px-md font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Campaign Name</th>
-                <th className="py-sm px-md font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Platform</th>
-                <th className="py-sm px-md font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-right">Spend</th>
-                <th className="py-sm px-md font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-right">Leads</th>
-                <th className="py-sm px-md font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-right">CPL</th>
-                <th className="py-sm px-md font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="font-body-sm">
-              <tr className="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
-                <td className="py-md px-md">
-                  <p className="font-data-point text-primary">Luxury Villas - Milan Center</p>
-                  <p className="text-outline text-xs mt-1">ID: CAM-9921-MIL</p>
-                </td>
-                <td className="py-md px-md">
-                  <span className="inline-flex items-center gap-xs px-2 py-1 rounded border border-outline-variant text-[12px] text-on-surface-variant">
-                    Google Search
-                  </span>
-                </td>
-                <td className="py-md px-md text-right font-data-point text-primary">€45,210</td>
-                <td className="py-md px-md text-right">312</td>
-                <td className="py-md px-md text-right text-tertiary font-medium">€144.90</td>
-                <td className="py-md px-md text-center">
-                  <button className="text-on-surface-variant hover:text-primary transition-colors">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </td>
-              </tr>
-              <tr className="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
-                <td className="py-md px-md">
-                  <p className="font-data-point text-primary">Lake Como Penthouses Retargeting</p>
-                  <p className="text-outline text-xs mt-1">ID: CAM-8834-LCO</p>
-                </td>
-                <td className="py-md px-md">
-                  <span className="inline-flex items-center gap-xs px-2 py-1 rounded border border-outline-variant text-[12px] text-on-surface-variant">
-                    Meta Display
-                  </span>
-                </td>
-                <td className="py-md px-md text-right font-data-point text-primary">€28,450</td>
-                <td className="py-md px-md text-right">485</td>
-                <td className="py-md px-md text-right text-[#4a6b5d] font-medium">€58.65</td>
-                <td className="py-md px-md text-center">
-                  <button className="text-on-surface-variant hover:text-primary transition-colors">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      {/* Meta Ad Spend / Cost Banner */}
+      <div className="bg-primary/5 border border-primary/10 rounded-xl p-5 mb-8 flex items-start gap-4 shadow-sm" id="spend-cpl-banner">
+        <div className="p-2 bg-primary/10 text-primary rounded-lg shrink-0 mt-0.5">
+          <Info className="w-5 h-5" />
+        </div>
+        <div className="space-y-1 bg-transparent">
+          <p className="font-bold text-primary text-sm">Integrazione Ads non collegata per Spesa / CPL</p>
+          <p className="text-xs text-on-surface-variant leading-relaxed">
+            Le statistiche sul budget, sulla spesa e sul CPL (Cost per Lead) saranno disponibili dopo aver collegato il tuo account Meta Ads nelle impostazioni generali dell&apos;agenzia.
+          </p>
+          <div className="pt-2 bg-transparent">
+            <Link 
+              href="/admin/settings" 
+              className="text-xs font-bold text-primary hover:text-surface-tint inline-flex items-center gap-1 group transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Configura Meta Ads nelle Impostazioni &rarr;
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* 2-Column charts using pure CSS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" id="source-status-visualizer-grid">
+        {/* Source Analysis */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm space-y-6" id="card-sources-distribution">
+          <div className="border-b border-outline-variant pb-3 flex items-center justify-between">
+            <h3 className="font-bold text-base text-primary">Leads per Sorgente</h3>
+            <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant font-mono">Provenienza</span>
+          </div>
+
+          <div className="space-y-5 bg-transparent">
+            {sourcesList.map((src) => {
+              const pct = total > 0 ? (src.count / total) * 100 : 0;
+              return (
+                <div key={src.key} className="space-y-2 bg-transparent">
+                  <div className="flex justify-between items-center text-xs font-medium">
+                    <span className="text-primary font-bold">{src.label}</span>
+                    <span className="font-mono text-on-surface-variant font-semibold">
+                      {src.count} lead ({pct.toFixed(1)}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-outline-variant/20 h-3 rounded-full overflow-hidden">
+                    <div 
+                      className={`${src.color} h-full rounded-full transition-all duration-500`} 
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Status Distribution */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm space-y-6" id="card-status-distribution">
+          <div className="border-b border-outline-variant pb-3 flex items-center justify-between">
+            <h3 className="font-bold text-base text-primary">Distribuzione per Stato</h3>
+            <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant font-mono">Fase Pipeline</span>
+          </div>
+
+          <div className="space-y-5 bg-transparent">
+            {statusList.map((status) => {
+              const pct = total > 0 ? (status.count / total) * 100 : 0;
+              return (
+                <div key={status.key} className="space-y-2 bg-transparent">
+                  <div className="flex justify-between items-center text-xs font-medium">
+                    <span className="text-primary font-bold">{status.label}</span>
+                    <span className="font-mono text-on-surface-variant font-semibold">
+                      {status.count} lead ({pct.toFixed(1)}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-outline-variant/20 h-3 rounded-full overflow-hidden">
+                    <div 
+                      className={`${status.color} h-full rounded-full transition-all duration-500`} 
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

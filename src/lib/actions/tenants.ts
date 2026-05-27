@@ -57,3 +57,29 @@ export async function updateTenantMetaStatus(metaConnected: boolean) {
   }
 }
 
+export async function updateTenantMetaConfig(data: {
+  metaConnected: boolean;
+  metaAccessToken?: string | null;
+  metaPageId?: string | null;
+  metaPageName?: string | null;
+  metaFormId?: string | null;
+}) {
+  try {
+    const tenantId = await getTenantId();
+    if (!tenantId) throw new Error('Unauthorized');
+
+    const docRef = doc(serverDb, 'tenants', tenantId);
+    await setDoc(docRef, {
+      metaConnected: data.metaConnected,
+      metaAccessToken: data.metaAccessToken ?? null,
+      metaPageId: data.metaPageId ?? null,
+      metaPageName: data.metaPageName ?? null,
+      metaFormId: data.metaFormId ?? null,
+    }, { merge: true });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+

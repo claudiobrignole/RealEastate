@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { serverDb } from '@/lib/firebase-server';
+import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore/lite';
 
 const VERIFY_TOKEN = 'zeroagenzia_meta_secure_webhook_2026';
 const LEGACY_VERIFY_TOKEN = 'unitleads_meta_secure_webhook_2026';
@@ -48,16 +48,18 @@ async function processMetaWebhook(body: any) {
             continue;
           }
 
-          const tenantsQuery = await adminDb.collection('tenants')
-            .where('metaPageId', '==', pageId)
-            .limit(1)
-            .get();
+          const tenantsQuery = query(
+            collection(serverDb, 'tenants'),
+            where('metaPageId', '==', pageId),
+            limit(1)
+          );
+          const tenantsSnapshot = await getDocs(tenantsQuery);
 
-          if (tenantsQuery.empty) {
+          if (tenantsSnapshot.empty) {
             console.error(`No tenant found configured for Meta Page ID: ${pageId}`);
             continue;
           }
-          const tenantId = tenantsQuery.docs[0].id;
+          const tenantId = tenantsSnapshot.docs[0].id;
 
           // 3. Save to CRM "leads" collection
           const newLead = {
@@ -67,14 +69,14 @@ async function processMetaWebhook(body: any) {
             campaignName: leadData.campaign_name || '',
             adName: leadData.ad_name || '',
             source: 'meta_ads',
-            createdAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
             status: 'new',
             tenantId,
             metaLeadId: leadData.id,
             rawWebhookData: change.value
           };
 
-          await adminDb.collection('leads').add(newLead);
+          await addDoc(collection(serverDb, 'leads'), newLead);
           console.log(`Successfully mapped and saved Meta lead: ${leadData.id}`);
         }
       }
@@ -106,9 +108,9 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Store the raw webhook event
-    await adminDb.collection('webhook_events').add({
+    await addDoc(collection(serverDb, 'webhook_events'), {
       payload: body,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: serverTimestamp(),
       source: 'meta'
     });
 

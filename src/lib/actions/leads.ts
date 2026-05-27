@@ -79,10 +79,28 @@ export async function getLeads(projectId?: string) {
       snapLegacy.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
       snapRoot.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
       
-      leads = Array.from(leadsMap.values());
+      leads = Array.from(leadsMap.values()).map(docData => {
+        let createdAtStr = '';
+        if (docData.createdAt) {
+          if (typeof docData.createdAt.toDate === 'function') {
+            createdAtStr = docData.createdAt.toDate().toISOString();
+          } else if (docData.createdAt.seconds) {
+            createdAtStr = new Date(docData.createdAt.seconds * 1000).toISOString();
+          } else if (typeof docData.createdAt === 'string') {
+            createdAtStr = docData.createdAt;
+          } else {
+            createdAtStr = new Date().toISOString();
+          }
+        }
+        return {
+          ...docData,
+          createdAt: createdAtStr || null
+        };
+      });
+
       leads.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return timeB - timeA;
       });
     } else {
@@ -110,12 +128,29 @@ export async function getLeads(projectId?: string) {
       snapshotGroup.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
       snapshotRoot.docs.forEach(doc => leadsMap.set(doc.id, { id: doc.id, ...doc.data() }));
       
-      leads = Array.from(leadsMap.values());
+      leads = Array.from(leadsMap.values()).map(docData => {
+        let createdAtStr = '';
+        if (docData.createdAt) {
+          if (typeof docData.createdAt.toDate === 'function') {
+            createdAtStr = docData.createdAt.toDate().toISOString();
+          } else if (docData.createdAt.seconds) {
+            createdAtStr = new Date(docData.createdAt.seconds * 1000).toISOString();
+          } else if (typeof docData.createdAt === 'string') {
+            createdAtStr = docData.createdAt;
+          } else {
+            createdAtStr = new Date().toISOString();
+          }
+        }
+        return {
+          ...docData,
+          createdAt: createdAtStr || null
+        };
+      });
       
       // Sort descending by createdAt
       leads.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return timeB - timeA;
       });
     }

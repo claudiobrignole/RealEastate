@@ -12,19 +12,39 @@ function getApp(): admin.app.App {
     return app;
   }
 
-  try {
-    app = admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      projectId: config.projectId,
-    });
-  } catch (error) {
-    console.log('Firebase admin initialization with applicationDefault failed, trying dynamic projectId only fallback:', error);
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (projectId && clientEmail && privateKey) {
+    try {
+      const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+      app = admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey: formattedPrivateKey,
+        }),
+        projectId: projectId,
+      });
+    } catch (error) {
+      console.log('Firebase admin cert initialization failed, falling back to projectId only:', error);
+      try {
+        app = admin.initializeApp({
+          projectId: projectId || config.projectId,
+        });
+      } catch (fallbackError) {
+        console.error('Firebase admin fallback initialization failed:', fallbackError);
+        throw fallbackError;
+      }
+    }
+  } else {
     try {
       app = admin.initializeApp({
-        projectId: config.projectId,
+        projectId: projectId || config.projectId,
       });
     } catch (fallbackError) {
-      console.error('Firebase admin fallback initialization failed:', fallbackError);
+      console.error('Firebase admin fallback initialization with projectId only failed:', fallbackError);
       throw fallbackError;
     }
   }

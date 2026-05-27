@@ -246,7 +246,7 @@ export async function getSuperAdminAllUsers() {
 // Process-level cache for getSuperAdminAllTenants to avoid blocking page loads during rapid navigation
 let cachedTenants: any[] | null = null;
 let cachedTenantsTime = 0;
-const TENANT_CACHE_TTL = 30000; // 30 seconds
+const TENANT_CACHE_TTL = 120000; // 2 minutes
 
 function clearTenantsCache() {
   cachedTenants = null;

@@ -27,9 +27,18 @@ export default async function AdminLayout({
   // If super admin, fetch all tenants
   let tenants: any[] = [];
   if (currentUser?.role === 'super_admin') {
-    const tenantsRes = await getSuperAdminAllTenants();
-    if (tenantsRes.success && tenantsRes.data) {
-      tenants = tenantsRes.data;
+    try {
+      const fetchWithTimeout = Promise.race([
+        getSuperAdminAllTenants(),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+      ]);
+      const tenantsRes = await fetchWithTimeout;
+      if (tenantsRes && tenantsRes.success && tenantsRes.data) {
+        tenants = tenantsRes.data;
+      }
+    } catch (err) {
+      console.warn('getSuperAdminAllTenants failed or timed out, using fallback empty array:', err);
+      tenants = [];
     }
   }
 

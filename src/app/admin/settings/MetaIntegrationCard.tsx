@@ -59,7 +59,7 @@ export default function MetaIntegrationCard({
   const [pageName, setPageName] = useState(initialPageName);
   const [formId, setFormId] = useState(initialFormId);
 
-  // Parse search params in useEffect to show connection banner
+  // Parse search params in useEffect to show connection banner and listen to popup messages
   useEffect(() => {
     const successParam = searchParams.get('meta_success');
     const errorParam = searchParams.get('meta_error');
@@ -93,6 +93,48 @@ export default function MetaIntegrationCard({
     }
   }, [searchParams]);
 
+  // Listen to postMessage from the popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+      if (event.data?.type === 'META_AUTH_SUCCESS') {
+        setStatus(true);
+        setIsSettingUp(false);
+        setSuccessBanner('Integrazione con Facebook completata con successo!');
+        router.refresh();
+        const timer = setTimeout(() => {
+          setSuccessBanner(null);
+        }, 4000);
+      } else if (event.data?.type === 'META_AUTH_ERROR') {
+        const errorParam = event.data.error;
+        let message = 'Si è verificato un errore durante la configurazione con Meta.';
+        if (errorParam === 'auth_cancelled') {
+          message = 'Autorizzazione Facebook annullata dall’utente.';
+        } else if (errorParam === 'token_exchange_failed') {
+          message = 'Scambio del codice di autorizzazione non riuscito.';
+        } else if (errorParam === 'accounts_fetch_failed') {
+          message = 'Impossibile recuperare le pagine gestite dal tuo account Facebook.';
+        } else if (errorParam === 'no_pages_found') {
+          message = 'Nessuna pagina Facebook aziendale trovata per questo account.';
+        } else if (errorParam === 'tenant_not_found') {
+          message = 'Tenant ID non configurato o sessione non valida.';
+        } else if (errorParam === 'db_update_failed') {
+          message = 'Errore nel salvataggio della configurazione nel database.';
+        }
+        setErrorBanner(message);
+        const timer = setTimeout(() => {
+          setErrorBanner(null);
+        }, 4000);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [router]);
+
   // Open / Close Setup UI
   const handleStartSetup = () => {
     setIsSettingUp(true);
@@ -112,14 +154,27 @@ export default function MetaIntegrationCard({
     setInlineError(null);
   };
 
-  // Real Facebook OAuth redirection handler
+  // Real Facebook OAuth redirection handler using popup
   const handleMetaOAuthLogin = async () => {
     setLoading(true);
     setInlineError(null);
     try {
       const url = await getMetaOAuthUrl();
       if (url) {
-        window.location.href = url;
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        
+        const popup = window.open(
+          url,
+          'meta_oauth_popup',
+          `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+        );
+        
+        if (!popup) {
+          setInlineError("Il blocco pop-up del browser ha impedito l'apertura della finestra. Abilita i pop-up per questo sito.");
+        }
       } else {
         setInlineError("Impossibile generare l'URL del collegamento OAuth.");
       }

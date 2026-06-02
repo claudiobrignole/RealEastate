@@ -14,6 +14,8 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-export const db = getFirestore(app, process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID);
+export const db = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID
+  ? getFirestore(app, process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID)
+  : getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);

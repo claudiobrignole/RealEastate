@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { loginWithCredentials } from '@/lib/actions/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,7 +17,14 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const res = await loginWithCredentials({ email, password });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const res = await response.json();
+      
       if (res.success) {
         // Clear explicitly logged out cookie so the layout is authorized to parse session
         document.cookie = '__explicit_logout=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';

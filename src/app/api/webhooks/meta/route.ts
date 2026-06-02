@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { serverDb } from '@/lib/firebase-server';
 import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore/lite';
 
+export const dynamic = 'force-dynamic';
+
 const VERIFY_TOKEN = 'zeroagenzia_meta_secure_webhook_2026';
 const LEGACY_VERIFY_TOKEN = 'unitleads_meta_secure_webhook_2026';
 

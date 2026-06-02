@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         await setDoc(doc(serverDb, 'users', userUid), {
           uid: userUid,
           email: emailNormal,
-          name: emailNormal.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+          name: emailNormal.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
           role: 'super_admin' as UserRole,
           tenantId: 'dev-super-admin-uid',
           password: seedPassword,

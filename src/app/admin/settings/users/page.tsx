@@ -55,7 +55,20 @@ export default function UsersSettingsPage() {
     let active = true;
     const fetchProfileAndData = async () => {
       try {
-        const user = await getCurrentUser();
+        let user: any = null;
+        try {
+          user = await getCurrentUser();
+        } catch (serverActionErr) {
+          console.warn('getCurrentUser Server Action not found, falling back to REST API endpoint:', serverActionErr);
+          const apiRes = await fetch('/api/auth/session');
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            if (data.success) {
+              user = data.user;
+            }
+          }
+        }
+
         if (!active) return;
         setCurrentUser(user);
         
@@ -83,8 +96,18 @@ export default function UsersSettingsPage() {
   const fetchUsers = async () => {
     setUsersLoading(true);
     try {
-      const res = await getTenantUsers();
-      if (res.success && res.data) {
+      let res: any = null;
+      try {
+        res = await getTenantUsers();
+      } catch (serverActionErr) {
+        console.warn('getTenantUsers Server Action not found, falling back to REST API:', serverActionErr);
+        const apiRes = await fetch('/api/users/list');
+        if (apiRes.ok) {
+          res = await apiRes.json();
+        }
+      }
+
+      if (res && res.success && res.data) {
         setUsers(res.data);
       }
     } catch (err) {
@@ -97,8 +120,18 @@ export default function UsersSettingsPage() {
   const fetchClientTenants = async () => {
     setTenantsLoading(true);
     try {
-      const res = await getSuperAdminAllTenants();
-      if (res.success && res.data) {
+      let res: any = null;
+      try {
+        res = await getSuperAdminAllTenants();
+      } catch (serverActionErr) {
+        console.warn('getSuperAdminAllTenants Server Action not found, falling back to REST API:', serverActionErr);
+        const apiRes = await fetch('/api/tenants/list');
+        if (apiRes.ok) {
+          res = await apiRes.json();
+        }
+      }
+
+      if (res && res.success && res.data) {
         setTenants(res.data);
       }
     } catch (err) {

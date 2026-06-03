@@ -19,7 +19,20 @@ export default function PersonalProfilePage() {
     let active = true;
     const fetchUser = async () => {
       try {
-        const user = await getCurrentUser();
+        let user: any = null;
+        try {
+          user = await getCurrentUser();
+        } catch (serverActionErr) {
+          console.warn('getCurrentUser Server Action not found or failed, falling back to REST API endpoint:', serverActionErr);
+          const apiRes = await fetch('/api/auth/session');
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            if (data.success) {
+              user = data.user;
+            }
+          }
+        }
+
         if (active && user) {
           setCurrentUser(user);
           setName(user.name || '');

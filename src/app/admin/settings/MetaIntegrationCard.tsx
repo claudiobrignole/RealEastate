@@ -59,6 +59,81 @@ export default function MetaIntegrationCard({
   const [pageName, setPageName] = useState(initialPageName);
   const [formId, setFormId] = useState(initialFormId);
 
+  // Webhook Simulator States
+  const [showSimulator, setShowSimulator] = useState(false);
+  const [simName, setSimName] = useState('Luigi Verdi (Test Webhook)');
+  const [simEmail, setSimEmail] = useState('luigi.verdi.test@gmail.com');
+  const [simPhone, setSimPhone] = useState('+39 321 9876543');
+  const [simCampaign, setSimCampaign] = useState('Campagna Appartamento Duomo');
+  const [simAd, setSimAd] = useState('Ad 1 - Vista Guglie Terrazza');
+  const [simulating, setSimulating] = useState(false);
+  const [simSuccess, setSimSuccess] = useState<string | null>(null);
+  const [simError, setSimError] = useState<string | null>(null);
+
+  const handleTriggerSimulation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSimulating(true);
+    setSimSuccess(null);
+    setSimError(null);
+
+    const mockPayload = {
+      object: 'page',
+      entry: [
+        {
+          id: pageId || '10948928421839',
+          time: Math.floor(Date.now() / 1000),
+          changes: [
+            {
+              value: {
+                form_id: formId || '4928104829103',
+                leadgen_id: `mock_lead_${Math.floor(Math.random() * 1000000)}`,
+                created_time: Math.floor(Date.now() / 1000),
+                page_id: pageId || '10948928421839',
+                ad_id: '492019482',
+                adgroup_id: '492019483',
+                mock_data: {
+                  name: simName.trim(),
+                  email: simEmail.trim(),
+                  phone: simPhone.trim(),
+                  campaignName: simCampaign.trim(),
+                  adName: simAd.trim()
+                }
+              },
+              field: 'leadgen'
+            }
+          ]
+        }
+      ]
+    };
+
+    try {
+      const response = await fetch('/api/webhooks/meta', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(mockPayload)
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        if (resData.success) {
+          setSimSuccess('MOCK LEAD SPECIALE INVIATO CON SUCCESSO! Il lead è stato intercettato dal webhook di sincronizzazione ed inserito nel CRM. Visita la scheda "CRM & Leads" o i Report per vederlo!');
+          setSimName('Nuovo Test_Lead ' + Math.floor(Math.random() * 100)); // Reset naming/random to show changes
+          router.refresh();
+        } else {
+          setSimError('Fattore interno non riuscito nel webhook.');
+        }
+      } else {
+        setSimError('Errore di connessione con l’endpoint del Webhook.');
+      }
+    } catch (err: any) {
+      setSimError('Eccezione durante la chiamata: ' + err.message);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
   // Parse search params in useEffect to show connection banner and listen to popup messages
   useEffect(() => {
     const successParam = searchParams.get('meta_success');
@@ -402,6 +477,117 @@ export default function MetaIntegrationCard({
                     Modulo Selezionato: <span className="font-mono bg-primary/10 px-1.5 py-0.5 rounded text-primary">{formId}</span>
                   </p>
                   <p className="text-xs text-on-surface-variant">Solo i lead derivanti da questo specifico modulo verranno caricati nel pannello.</p>
+                </div>
+              )}
+            </div>
+
+            {/* COLLAPSIBLE WEBHOOK SIMULATOR PANEL */}
+            <div className="border border-dashed border-outline-variant rounded-xl p-4 bg-surface-container-low/50 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSimulator(!showSimulator);
+                  setSimSuccess(null);
+                  setSimError(null);
+                }}
+                className="w-full flex items-center justify-between text-xs font-bold text-primary uppercase tracking-wide cursor-pointer focus:outline-none"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#1877F2] animate-pulse" />
+                  Strumento di Collaudo Webhook (Meta Simulator)
+                </span>
+                <span className="text-[11px] underline text-primary/80 hover:text-primary">
+                  {showSimulator ? 'Nascondi Pannello' : 'Mostra Pannello di Test'}
+                </span>
+              </button>
+
+              {showSimulator && (
+                <div className="pt-2 border-t border-outline-variant/60 space-y-4 animate-fade-in" id="meta-simulator-panel">
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Usa questo modulo per testare l&apos;integrazione in tempo reale. Verrà simulata una chiamata webhook Meta con i dati sottostanti, indirizzata al tuo ID Pagina Facebook (<code className="font-mono bg-surface px-1 py-0.5 rounded text-primary font-bold">{pageId || 'ID_MOCK'}</code>).
+                  </p>
+
+                  {simSuccess && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{simSuccess}</span>
+                    </div>
+                  )}
+
+                  {simError && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-xs font-semibold flex items-start gap-2">
+                      <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <span>{simError}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleTriggerSimulation} className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Nome Candidato Lead</label>
+                      <input
+                        type="text"
+                        value={simName}
+                        onChange={(e) => setSimName(e.target.value)}
+                        className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Email Contatto</label>
+                      <input
+                        type="email"
+                        value={simEmail}
+                        onChange={(e) => setSimEmail(e.target.value)}
+                        className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Telefono / WhatsApp</label>
+                      <input
+                        type="text"
+                        value={simPhone}
+                        onChange={(e) => setSimPhone(e.target.value)}
+                        className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Nome Campagna Meta Ads</label>
+                      <input
+                        type="text"
+                        value={simCampaign}
+                        onChange={(e) => setSimCampaign(e.target.value)}
+                        className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Nome Annuncio Pubblicitario (Ad Name)</label>
+                      <input
+                        type="text"
+                        value={simAd}
+                        onChange={(e) => setSimAd(e.target.value)}
+                        className="w-full p-2 bg-surface text-xs text-on-surface border border-outline-variant rounded focus:border-primary focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 pt-1 flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={simulating}
+                        className="px-4 py-2 bg-primary hover:bg-primary/95 text-on-primary font-bold text-xs rounded shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {simulating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Invia Lead Simulato al Webhook
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
             </div>

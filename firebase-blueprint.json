@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role and tenant information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique user ID" },
+        "email": { "type": "string", "description": "The registered email address" },
+        "name": { "type": "string", "description": "The displayed name of the user" },
+        "role": { "type": "string", "enum": ["super_admin", "tenant_admin", "tenant_user"], "description": "The role determining platform privileges" },
+        "tenantId": { "type": "string", "description": "The tenant ID associated with this user" },
+        "password": { "type": "string", "description": "Stored password for fallback authentication state" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account registration timestamp" }
+      },
+      "required": ["uid", "email", "name", "role", "tenantId"]
+    },
+    "Tenant": {
+      "title": "Tenant",
+      "description": "An agency space defining a data silo workspace",
+      "type": "object",
+      "properties": {
+        "plan": { "type": "string", "description": "Subscription tier level" },
+        "maxUsers": { "type": "number", "description": "Maximum allowed user accounts" },
+        "currentUserCount": { "type": "number", "description": "Current registered user count" },
+        "metaPageId": { "type": "string", "description": "Facebook Page ID for Meta Ads connection" },
+        "metaAccessToken": { "type": "string", "description": "Access token for Meta Integration Graph API queries" },
+        "metaPageName": { "type": "string", "description": "Selected Facebook Page name" },
+        "metaFormId": { "type": "string", "description": "Connected leadgen form ID" },
+        "metaConnected": { "type": "boolean", "description": "Status indicating active Meta Ads OAuth link" },
+        "metaConnectedAt": { "type": "string", "format": "date-time", "description": "Timestamp when OAuth link occurred" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Tenant workspace creation timestamp" }
+      },
+      "required": ["plan", "maxUsers", "currentUserCount", "createdAt"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A property presentation landing page project",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique project identifier" },
+        "tenantId": { "type": "string", "description": "Tenant ID associated with the project" },
+        "name": { "type": "string", "description": "Project display/address name" },
+        "slug": { "type": "string", "description": "Unique URL path segment" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Project creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last edit timestamp" },
+        "theme": { "type": "string", "description": "Assigned display CSS theme choice" },
+        "blocks": { "type": "array", "description": "Layout drag-and-drop components list" }
+      },
+      "required": ["id", "tenantId", "name", "slug"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "A prospect lead received from landing page forms or Meta Ads",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique lead identifier" },
+        "tenantId": { "type": "string", "description": "Tenant ID associated with this lead" },
+        "projectId": { "type": "string", "description": "The linked property landing page project ID (optional for general social ads leads)" },
+        "firstName": { "type": "string", "description": "Prospect first name" },
+        "lastName": { "type": "string", "description": "Prospect last name" },
+        "name": { "type": "string", "description": "Prospect complete name" },
+        "email": { "type": "string", "description": "Prospect email address" },
+        "phone": { "type": "string", "description": "Prospect telephone contact" },
+        "message": { "type": "string", "description": "Prospect query or notes text" },
+        "status": { "type": "string", "enum": ["new", "contacted", "qualified", "lost"], "description": "Pipeline stage" },
+        "source": { "type": "string", "enum": ["landing_page", "meta_ads", "landing_form"], "description": "Where the lead originated from" },
+        "campaignName": { "type": "string", "description": "Meta campaign advertisement name" },
+        "adName": { "type": "string", "description": "Meta ad creative name" },
+        "metaLeadId": { "type": "string", "description": "Original leadgen ID on Facebook side" },
+        "createdAt": { "type": "string", "description": "Creation timestamp from client or server" }
+      },
+      "required": ["tenantId", "email", "status", "source", "createdAt"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A site showing schedule block linked to a lead",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique appointment identifier" },
+        "tenantId": { "type": "string", "description": "Tenant ID associated with this reservation" },
+        "year": { "type": "number", "description": "The scheduled year for calendar index" },
+        "month": { "type": "number", "description": "The scheduled month for calendar index" },
+        "dateStr": { "type": "string", "description": "ISO date string formatted as YYYY-MM-DD" },
+        "startTime": { "type": "string", "description": "Start time formatted as HH:MM" },
+        "endTime": { "type": "string", "description": "End time formatted as HH:MM" },
+        "title": { "type": "string", "description": "Appointment headline" },
+        "description": { "type": "string", "description": "Notes concerning the visitation" },
+        "leadId": { "type": "string", "description": "ID of the associated crm lead" },
+        "leadName": { "type": "string", "description": "Name of the associated crm lead" },
+        "type": { "type": "string", "description": "Category of appointment (e.g. visit, call)" },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "pending"], "description": "State of scheduling verification" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["tenantId", "year", "month", "dateStr", "startTime", "endTime", "title", "type", "status", "createdAt"]
+    },
+    "WebhookEvent": {
+      "title": "WebhookEvent",
+      "description": "A raw webhook payload event captured for background retrieval processing",
+      "type": "object",
+      "properties": {
+        "payload": { "type": "object", "description": "Raw JSON object payload incoming" },
+        "source": { "type": "string", "description": "Source generator (e.g. meta, external)" },
+        "createdAt": { "type": "string", "description": "Reception timestamp on the server" }
+      },
+      "required": ["payload", "source", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "User profiles collection"
+    },
+    "tenants": {
+      "schema": "Tenant",
+      "description": "Active workspaces collection"
+    },
+    "projects": {
+      "schema": "Project",
+      "description": "Page builder project definitions"
+    },
+    "leads": {
+      "schema": "Lead",
+      "description": "Leads repository (unified root)"
+    },
+    "appointments": {
+      "schema": "Appointment",
+      "description": "Client calendars and site showings appointments"
+    },
+    "webhook_events": {
+      "schema": "WebhookEvent",
+      "description": "Logged external event callbacks"
+    }
+  }
+}

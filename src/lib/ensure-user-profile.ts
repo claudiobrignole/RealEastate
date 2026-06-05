@@ -1,8 +1,7 @@
 import { adminAuth } from '@/lib/firebase-admin';
 import { getDocData, setDocData } from '@/lib/server-db';
 import { UserRole } from '@/types/auth';
-
-const DEFAULT_TENANT_ID = 'dev-super-admin-uid';
+import { ensureMasterTenant, MASTER_TENANT_ID } from '@/lib/master-tenant';
 
 export async function ensureUserProfile(uid: string): Promise<Record<string, unknown> | null> {
   const existing = await getDocData('users', uid);
@@ -24,23 +23,12 @@ export async function ensureUserProfile(uid: string): Promise<Record<string, unk
       email,
       name: authUser.displayName || email.split('@')[0] || 'Utente',
       role,
-      tenantId: DEFAULT_TENANT_ID,
+      tenantId: MASTER_TENANT_ID,
       createdAt: new Date().toISOString(),
     };
 
     await setDocData('users', uid, profile, true);
-
-    const tenant = await getDocData('tenants', DEFAULT_TENANT_ID);
-    if (!tenant) {
-      await setDocData('tenants', DEFAULT_TENANT_ID, {
-        id: DEFAULT_TENANT_ID,
-        name: 'ZeroAgenzia Casa HQ',
-        plan: 'pro',
-        maxUsers: 99,
-        currentUserCount: 1,
-        createdAt: new Date().toISOString(),
-      });
-    }
+    await ensureMasterTenant();
 
     return profile;
   } catch (error) {

@@ -3,24 +3,9 @@ import { adminAuth } from '@/lib/firebase-admin';
 import { getAdminSeedEmails } from '@/lib/env';
 import { getDocData, setDocData, queryCollection } from '@/lib/server-db';
 import { UserRole } from '@/types/auth';
+import { ensureMasterTenant, MASTER_TENANT_ID } from '@/lib/master-tenant';
 
 export const dynamic = 'force-dynamic';
-
-const DEFAULT_TENANT_ID = 'dev-super-admin-uid';
-
-async function ensureDefaultTenant() {
-  const tenant = await getDocData('tenants', DEFAULT_TENANT_ID);
-  if (!tenant) {
-    await setDocData('tenants', DEFAULT_TENANT_ID, {
-      id: DEFAULT_TENANT_ID,
-      name: 'ZeroAgenzia Casa HQ',
-      plan: 'pro',
-      maxUsers: 99,
-      currentUserCount: 1,
-      createdAt: new Date().toISOString(),
-    });
-  }
-}
 
 async function migrateFirestoreUserToAuth(
   email: string,
@@ -86,7 +71,7 @@ export async function POST(req: NextRequest) {
     if (seedEmails.includes(emailNormal)) {
       const existing = await queryCollection('users', [['email', '==', emailNormal]]);
       if (existing.length === 0) {
-        await ensureDefaultTenant();
+        await ensureMasterTenant();
         const record = await adminAuth.createUser({
           email: emailNormal,
           password: typedPassword,
@@ -97,7 +82,7 @@ export async function POST(req: NextRequest) {
           email: emailNormal,
           name: emailNormal.split('@')[0],
           role: 'super_admin' as UserRole,
-          tenantId: DEFAULT_TENANT_ID,
+          tenantId: MASTER_TENANT_ID,
           createdAt: new Date().toISOString(),
         });
       }

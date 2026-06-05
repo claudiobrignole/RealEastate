@@ -10,6 +10,12 @@ import {
 } from '@/lib/server-db';
 import { getCurrentUser, getTenantId } from './auth';
 import { UserRole } from '@/types/auth';
+import {
+  ensureMasterTenant,
+  isMasterTenantId,
+  MASTER_TENANT_ID,
+  MASTER_TENANT_NAME,
+} from '@/lib/master-tenant';
 
 export async function verifyIsSuperAdmin() {
   const user = await getCurrentUser();
@@ -26,6 +32,7 @@ export async function createTenantUser(data: {
   email: string;
   password: string;
   role?: UserRole;
+  tenantId?: string;
 }) {
   try {
     const currentUser = await getCurrentUser();
@@ -34,11 +41,26 @@ export async function createTenantUser(data: {
       return { success: false, error: 'Privilegi insufficienti per creare utenti' };
     }
 
-    const tenantId = await getTenantId();
+    let tenantId =
+      currentUser.role === 'super_admin' && data.tenantId
+        ? data.tenantId
+        : await getTenantId();
     if (!tenantId) return { success: false, error: 'Nessuno spazio di lavoro attivo' };
 
-    const tenant = await getDocData('tenants', tenantId);
-    if (!tenant) return { success: false, error: 'Spazio di lavoro non trovato' };
+    if (isMasterTenantId(tenantId)) {
+      await ensureMasterTenant();
+    }
+
+    let tenant = await getDocData('tenants', tenantId);
+    if (!tenant && isMasterTenantId(tenantId)) {
+      tenant = await ensureMasterTenant();
+    }
+    if (!tenant) {
+      return {
+        success: false,
+        error: `Spazio di lavoro non trovato. Seleziona uno spazio valido dal menu in alto (Spazio: …).`,
+      };
+    }
 
     const currentUserCount = (tenant.currentUserCount as number) || 0;
     const maxUsers = (tenant.maxUsers as number) || 10;
@@ -114,6 +136,10 @@ export async function getTenantUsers() {
     const tenantId = await getTenantId();
     if (!tenantId) return { success: false, error: 'Nessuno spazio associato' };
 
+    if (isMasterTenantId(tenantId)) {
+      await ensureMasterTenant();
+    }
+
     const users = await queryCollection('users', [['tenantId', '==', tenantId]]);
     if (users.length === 0) {
       return {
@@ -160,8 +186,20 @@ export async function getSuperAdminAllTenants() {
       return { success: true, data: cachedTenants };
     }
 
+    await ensureMasterTenant();
+
     const tenants = await queryCollection('tenants');
     tenants.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    if (!tenants.some((t) => t.id === MASTER_TENANT_ID)) {
+      tenants.unshift({
+        id: MASTER_TENANT_ID,
+        name: MASTER_TENANT_NAME,
+        plan: 'pro',
+        maxUsers: 99,
+        isMaster: true,
+      });
+    }
 
     cachedTenants = tenants;
     cachedTenantsTime = now;

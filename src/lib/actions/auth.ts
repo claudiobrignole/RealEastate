@@ -7,8 +7,9 @@ import { cookies } from 'next/headers';
 import { UserRole } from '@/types/auth';
 import { allowDevAuthBypass } from '@/lib/env';
 import { cache } from 'react';
+import { ensureMasterTenant, MASTER_TENANT_ID } from '@/lib/master-tenant';
 
-const DEV_UID = 'dev-super-admin-uid';
+const DEV_UID = MASTER_TENANT_ID;
 const SESSION_MAX_AGE_MS = 60 * 60 * 24 * 5 * 1000;
 
 function getDevBypassUser(): Record<string, unknown> {
@@ -159,17 +160,7 @@ export async function establishDevBypassSession() {
     const devUser = getDevBypassUser();
     await setDocData('users', DEV_UID, devUser, true);
 
-    const tenant = await getDocData('tenants', DEV_UID);
-    if (!tenant) {
-      await setDocData('tenants', DEV_UID, {
-        id: DEV_UID,
-        name: 'ZeroAgenzia Casa HQ',
-        plan: 'pro',
-        maxUsers: 99,
-        currentUserCount: 1,
-        createdAt: new Date().toISOString(),
-      });
-    }
+    await ensureMasterTenant();
   } catch (error) {
     console.warn('Dev bypass: skipping Firestore seed (credentials missing?):', error);
   }
@@ -195,16 +186,22 @@ export async function switchActiveTenant(tenantId: string | null) {
       return { success: false, error: 'Unauthorized: Only Super Admins can switch spaces' };
     }
 
-    await setDocData('users', currentUser.uid, { activeTenantId: tenantId || null }, true);
+    const resolvedTenantId = tenantId || MASTER_TENANT_ID;
+    await setDocData(
+      'users',
+      currentUser.uid,
+      { activeTenantId: resolvedTenantId },
+      true
+    );
 
     const cookieStore = await cookies();
     const session = cookieStore.get('__session')?.value;
     invalidateSessionCache(session);
 
-    if (!tenantId) {
+    if (resolvedTenantId === MASTER_TENANT_ID) {
       cookieStore.delete('__active_tenant');
     } else {
-      cookieStore.set('__active_tenant', tenantId, {
+      cookieStore.set('__active_tenant', resolvedTenantId, {
         path: '/',
         maxAge: 86400,
         sameSite: 'lax',
@@ -226,7 +223,12 @@ export async function getTenantId() {
 
     if (currentUser) {
       if (currentUser.role === 'super_admin') {
-        return currentUser.activeTenantId || activeTenant || DEV_UID;
+        return (
+          currentUser.activeTenantId ||
+          activeTenant ||
+          currentUser.tenantId ||
+          DEV_UID
+        );
       }
       return currentUser.tenantId || currentUser.uid;
     }

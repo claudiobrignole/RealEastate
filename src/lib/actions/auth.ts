@@ -1,202 +1,101 @@
 'use server';
 
 import { adminAuth } from '@/lib/firebase-admin';
-import { serverDb } from '@/lib/firebase-server';
-import { doc, getDoc, setDoc, query, collection, where, getDocs } from 'firebase/firestore/lite';
+import { getDocData, setDocData, queryCollection } from '@/lib/server-db';
 import { cookies } from 'next/headers';
 import { UserRole } from '@/types/auth';
-import { isAiStudio } from '@/lib/is-ai-studio';
+import { allowDevAuthBypass } from '@/lib/env';
 import { cache } from 'react';
 
-function decodeJwtPayload(token: string): any {
-  if (token.startsWith('bypass-jwt-')) {
-    const uid = token.substring('bypass-jwt-'.length);
-    return { uid, sub: uid };
+const DEV_UID = 'dev-super-admin-uid';
+const SESSION_MAX_AGE_MS = 60 * 60 * 24 * 5 * 1000;
+
+function getDevBypassUser(): Record<string, unknown> {
+  return {
+    uid: DEV_UID,
+    email: process.env.DEV_SUPER_ADMIN_EMAIL || 'admin@localhost',
+    name: 'Dev Super Admin',
+    role: 'super_admin' as UserRole,
+    tenantId: DEV_UID,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+const globalUserCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
+const CACHE_TTL_MS = 20000;
+
+async function verifySession(session: string): Promise<{ uid: string } | null> {
+  if (allowDevAuthBypass() && session === 'dev-bypass-token') {
+    return { uid: DEV_UID };
   }
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error('Failed to decode JWT payload:', e);
+    const decoded = await adminAuth.verifySessionCookie(session, true);
+    return { uid: decoded.uid };
+  } catch {
     return null;
   }
 }
 
-export async function verifyIdTokenSafe(session: string): Promise<{ uid: string; email?: string; [key: string]: any }> {
-  if (session === 'dev-bypass-token') {
-    return { uid: 'dev-super-admin-uid', sub: 'dev-super-admin-uid' };
-  }
-  if (session.startsWith('bypass-jwt-')) {
-    const uid = session.substring('bypass-jwt-'.length);
-    return { uid, sub: uid };
-  }
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(session);
-    return decodedToken;
-  } catch (error) {
-    console.warn('adminAuth.verifyIdToken failed, falling back to decoding payload directly:', error);
-    const decoded = decodeJwtPayload(session);
-    if (decoded && (decoded.uid || decoded.sub)) {
-      return {
-        ...decoded,
-        uid: decoded.uid || decoded.sub,
-      };
-    }
-    throw error;
-  }
-}
-
-// Module-level global cache to persist user sessions across separate HTTP requests/Server Actions
-const globalUserCache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL_MS = 20000; // 20 seconds profile caching for fast page navigation
-
-async function fetchUserNoCache(session: string): Promise<any> {
-  let uid = '';
-  if (session === 'dev-bypass-token') {
-    uid = 'dev-super-admin-uid';
-  } else {
+async function fetchUserByUid(uid: string): Promise<Record<string, unknown> | null> {
+  if (allowDevAuthBypass() && uid === DEV_UID) {
     try {
-      const decodedToken = await verifyIdTokenSafe(session);
-      uid = decodedToken.uid;
-    } catch {
-      return null;
+      const data = await getDocData('users', uid);
+      if (data) return data;
+      const devUser = getDevBypassUser();
+      await setDocData('users', DEV_UID, devUser, true);
+      return devUser;
+    } catch (error) {
+      console.warn('Dev bypass: Firestore unavailable, using in-memory user:', error);
+      return getDevBypassUser();
     }
   }
 
-  const userRef = doc(serverDb, 'users', uid);
-  const userSnapshot = await getDoc(userRef);
-  if (!userSnapshot.exists()) {
-    if (session === 'dev-bypass-token') {
-      const devUser = {
-        uid,
-        email: 'claudio.brignole@exmachina.ch',
-        name: 'Claudio Brignole',
-        role: 'super_admin' as UserRole,
-        tenantId: 'dev-super-admin-uid',
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(userRef, devUser);
-      return devUser;
-    }
+  try {
+    return await getDocData('users', uid);
+  } catch (error) {
+    console.error('fetchUserByUid error:', error);
     return null;
   }
-
-  return userSnapshot.data();
 }
 
-// Request-level cache combining with the global process-level RAM cache
-const getCachedUser = cache(async (session: string | undefined): Promise<{ uid: string, email: string, role: UserRole, tenantId?: string, name?: string, activeTenantId?: string } | null> => {
+const getCachedUser = cache(async (session: string | undefined) => {
   if (!session) return null;
 
   const now = Date.now();
   const cached = globalUserCache.get(session);
-  if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
-    return cached.data;
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data as {
+      uid: string;
+      email: string;
+      role: UserRole;
+      tenantId?: string;
+      name?: string;
+      activeTenantId?: string;
+    };
   }
 
-  const res = await fetchUserNoCache(session);
-  if (res) {
-    globalUserCache.set(session, { data: res, timestamp: now });
-  }
-  return res;
+  const verified = await verifySession(session);
+  if (!verified) return null;
+
+  const res = await fetchUserByUid(verified.uid);
+  if (!res) return null;
+
+  const user = {
+    uid: res.uid as string,
+    email: res.email as string,
+    role: res.role as UserRole,
+    tenantId: res.tenantId as string | undefined,
+    name: res.name as string | undefined,
+    activeTenantId: res.activeTenantId as string | undefined,
+  };
+
+  globalUserCache.set(session, { data: user, timestamp: now });
+  return user;
 });
 
-export async function loginWithCredentials(data: { email: string; password?: string }) {
-  try {
-    const emailNormal = data.email.trim().toLowerCase();
-    
-    // Find the user with this email in Firestore (client db)
-    const usersQuery = query(collection(serverDb, 'users'), where('email', '==', emailNormal));
-    const snapshot = await getDocs(usersQuery);
-    
-    if (snapshot.empty) {
-      return { success: false, error: 'Credenziali non valide o utente non registrato' };
-    }
-    
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
-    
-    // Verify password if provided
-    if (data.password && userData.password && userData.password !== data.password) {
-      return { success: false, error: 'Password non corretta' };
-    }
-    
-    // Set cookie session using a fallback mock jwt
-    const bypassToken = `bypass-jwt-${userDoc.id}`;
-    const cookieStore = await cookies();
-    cookieStore.delete('__explicit_logout');
-    cookieStore.set('__session', bypassToken, {
-      path: '/',
-      maxAge: 86400,
-      sameSite: 'lax',
-      secure: false
-    });
-    
-    return { success: true };
-  } catch (error: any) {
-    console.error('loginWithCredentials error:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-export async function setupDevBypassUser() {
-  const uid = 'dev-super-admin-uid';
-  const email = 'claudio.brignole@exmachina.ch';
-  const name = 'Claudio Brignole';
-
-  try {
-    // Create super_admin user if not exists
-    const userRef = doc(serverDb, 'users', uid);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      await setDoc(userRef, {
-        uid,
-        email,
-        name,
-        role: 'super_admin' as UserRole,
-        tenantId: 'dev-super-admin-uid',
-        password: 'admin',
-        createdAt: new Date().toISOString(),
-      });
-    } else {
-      await setDoc(userRef, {
-        password: 'admin'
-      }, { merge: true });
-    }
-
-    // Set up a default tenant if it doesn't exist to prevent empty tenant references
-    const tenantRef = doc(serverDb, 'tenants', 'dev-super-admin-uid');
-    const tenantDoc = await getDoc(tenantRef);
-    if (!tenantDoc.exists()) {
-      await setDoc(tenantRef, {
-        id: 'dev-super-admin-uid',
-        name: 'ZeroAgenzia Casa HQ',
-        plan: 'pro',
-        maxUsers: 99,
-        currentUserCount: 1,
-        createdAt: new Date().toISOString()
-      });
-    }
-  } catch (e) {
-    console.warn("Dev bypass DB setup failed, but continuing log in:", e);
-  }
-
-  // Set the cookie
-  const cookieStore = await cookies();
-  cookieStore.delete('__explicit_logout');
-  cookieStore.set('__session', 'dev-bypass-token', {
-    path: '/',
-    maxAge: 3600,
-    sameSite: 'lax',
-    secure: false
-  });
-
-  return { success: true };
+function invalidateSessionCache(session?: string) {
+  if (session) globalUserCache.delete(session);
+  globalUserCache.delete('dev-bypass-token');
 }
 
 export async function getCurrentUser() {
@@ -204,20 +103,55 @@ export async function getCurrentUser() {
     const cookieStore = await cookies();
     let session = cookieStore.get('__session')?.value;
     const explicitLogout = cookieStore.get('__explicit_logout')?.value === 'true';
-    
-    // Auto-bypass in development
-    const isDev = await isAiStudio();
-    if (!session && isDev && !explicitLogout) {
+
+    if (!session && allowDevAuthBypass() && !explicitLogout) {
       session = 'dev-bypass-token';
     }
 
     if (!session) return null;
-
     return await getCachedUser(session);
   } catch (error) {
     console.error('getCurrentUser error:', error);
     return null;
   }
+}
+
+export async function establishDevBypassSession() {
+  if (!allowDevAuthBypass()) {
+    return { success: false, error: 'Dev bypass disabilitato' };
+  }
+
+  try {
+    const devUser = getDevBypassUser();
+    await setDocData('users', DEV_UID, devUser, true);
+
+    const tenant = await getDocData('tenants', DEV_UID);
+    if (!tenant) {
+      await setDocData('tenants', DEV_UID, {
+        id: DEV_UID,
+        name: 'ZeroAgenzia Casa HQ',
+        plan: 'pro',
+        maxUsers: 99,
+        currentUserCount: 1,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.warn('Dev bypass: skipping Firestore seed (credentials missing?):', error);
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.delete('__explicit_logout');
+  cookieStore.set('__session', 'dev-bypass-token', {
+    path: '/',
+    maxAge: 3600,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false,
+  });
+
+  invalidateSessionCache();
+  return { success: true };
 }
 
 export async function switchActiveTenant(tenantId: string | null) {
@@ -227,21 +161,12 @@ export async function switchActiveTenant(tenantId: string | null) {
       return { success: false, error: 'Unauthorized: Only Super Admins can switch spaces' };
     }
 
-    // Persist to Firestore DB so it works flawlessly within iframes (which block third-party cookies!)
-    const userRef = doc(serverDb, 'users', currentUser.uid);
-    await setDoc(userRef, {
-      activeTenantId: tenantId || null
-    }, { merge: true });
+    await setDocData('users', currentUser.uid, { activeTenantId: tenantId || null }, true);
 
-    // Invalidate RAM cache instantly to make the UI update immediately
-    globalUserCache.delete('dev-bypass-token');
     const cookieStore = await cookies();
     const session = cookieStore.get('__session')?.value;
-    if (session) {
-      globalUserCache.delete(session);
-    }
+    invalidateSessionCache(session);
 
-    // Set fallback active tenant cookie as well
     if (!tenantId) {
       cookieStore.delete('__active_tenant');
     } else {
@@ -249,34 +174,32 @@ export async function switchActiveTenant(tenantId: string | null) {
         path: '/',
         maxAge: 86400,
         sameSite: 'lax',
-        secure: false
+        secure: process.env.NODE_ENV === 'production',
       });
     }
     return { success: true };
-  } catch (error: any) {
-    console.error('switchActiveTenant error:', error);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore';
+    return { success: false, error: message };
   }
 }
 
 export async function getTenantId() {
   try {
     const cookieStore = await cookies();
-    
-    // Fallback active tenant override cookie for non-iframe or basic environments
     const activeTenant = cookieStore.get('__active_tenant')?.value;
-
     const currentUser = await getCurrentUser();
+
     if (currentUser) {
       if (currentUser.role === 'super_admin') {
-        return currentUser.activeTenantId || activeTenant || 'dev-super-admin-uid';
+        return currentUser.activeTenantId || activeTenant || DEV_UID;
       }
       return currentUser.tenantId || currentUser.uid;
     }
-    
-    return 'dev-super-admin-uid';
-  } catch (e) {
-    return 'dev-super-admin-uid';
+
+    return allowDevAuthBypass() ? DEV_UID : null;
+  } catch {
+    return allowDevAuthBypass() ? DEV_UID : null;
   }
 }
 
@@ -284,23 +207,30 @@ export async function logoutUser() {
   try {
     const cookieStore = await cookies();
     const session = cookieStore.get('__session')?.value;
-    if (session) {
-      globalUserCache.delete(session);
+    invalidateSessionCache(session);
+
+    if (session && session !== 'dev-bypass-token') {
+      try {
+        const decoded = await adminAuth.verifySessionCookie(session, true);
+        await adminAuth.revokeRefreshTokens(decoded.sub);
+      } catch {
+        // ignore
+      }
     }
-    globalUserCache.delete('dev-bypass-token');
 
     cookieStore.delete('__session');
     cookieStore.delete('__active_tenant');
     cookieStore.set('__explicit_logout', 'true', {
       path: '/',
       maxAge: 86400,
+      httpOnly: true,
       sameSite: 'lax',
-      secure: false
+      secure: process.env.NODE_ENV === 'production',
     });
     return { success: true };
-  } catch (error: any) {
-    console.error('logoutUser error:', error);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore';
+    return { success: false, error: message };
   }
 }
 
@@ -312,80 +242,54 @@ export async function updateCurrentUserProfile(data: { name: string; email: stri
     }
 
     const emailNormal = data.email.trim().toLowerCase();
+    const existing = await queryCollection('users', [['email', '==', emailNormal]]);
 
-    // Check if another user has this email
-    const usersQuery = query(collection(serverDb, 'users'), where('email', '==', emailNormal));
-    const snapshot = await getDocs(usersQuery);
-    
-    for (const docSnapshot of snapshot.docs) {
-      if (docSnapshot.id !== currentUser.uid) {
+    for (const row of existing) {
+      if (row.id !== currentUser.uid) {
         return { success: false, error: 'Questa email è già utilizzata da un altro utente.' };
       }
     }
 
-    // Update public user profile record in Firestore
-    const userRef = doc(serverDb, 'users', currentUser.uid);
-    await setDoc(userRef, {
+    await setDocData('users', currentUser.uid, {
       name: data.name.trim(),
-      email: emailNormal
-    }, { merge: true });
+      email: emailNormal,
+    }, true);
 
-    // Invalidate local cache keys safely
-    globalUserCache.delete('dev-bypass-token');
-    const cookieStore = await cookies();
-    const session = cookieStore.get('__session')?.value;
-    if (session) {
-      globalUserCache.delete(session);
+    try {
+      await adminAuth.updateUser(currentUser.uid, {
+        email: emailNormal,
+        displayName: data.name.trim(),
+      });
+    } catch (e) {
+      console.warn('Firebase Auth profile sync skipped:', e);
     }
 
+    const cookieStore = await cookies();
+    invalidateSessionCache(cookieStore.get('__session')?.value);
+
     return { success: true };
-  } catch (error: any) {
-    console.error('updateCurrentUserProfile error:', error);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore';
+    return { success: false, error: message };
   }
 }
 
 export async function getAvailableTestUsers() {
+  if (!allowDevAuthBypass()) {
+    return { success: true, data: [] };
+  }
   try {
-    const snapshot = await getDocs(collection(serverDb, 'users'));
-    let users = snapshot.docs.map(docSnapshot => {
-      const d = docSnapshot.data();
-      return {
-        uid: docSnapshot.id,
-        email: d.email,
-        name: d.name,
-        role: d.role,
-        password: d.password || 'admin'
-      };
-    });
-
-    // Ensure Claudio master exists
-    if (!users.some(u => u.uid === 'dev-super-admin-uid' || u.email === 'claudio.brignole@exmachina.ch')) {
-      users.unshift({
-        uid: 'dev-super-admin-uid',
-        email: 'claudio.brignole@exmachina.ch',
-        name: 'Claudio Brignole',
-        role: 'super_admin',
-        password: 'admin'
-      });
-    }
-
-    return { success: true, data: users };
-  } catch (error) {
-    console.error('getAvailableTestUsers error:', error);
+    const users = await queryCollection('users');
     return {
       success: true,
-      data: [
-        {
-          uid: 'dev-super-admin-uid',
-          email: 'claudio.brignole@exmachina.ch',
-          name: 'Claudio Brignole',
-          role: 'super_admin',
-          password: 'admin'
-        }
-      ]
+      data: users.map((u) => ({
+        uid: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+      })),
     };
+  } catch {
+    return { success: true, data: [] };
   }
 }
-
-

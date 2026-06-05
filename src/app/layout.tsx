@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${notoSerif.variable}`}>
+    <html lang="it" className={`${manrope.variable} ${notoSerif.variable}`}>
       <body className="font-body-md text-body-md bg-background text-on-background">
         {children}
       </body>

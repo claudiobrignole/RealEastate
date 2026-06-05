@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { adminAuth } from '@/lib/firebase-admin';
-import { isAiStudio } from '@/lib/is-ai-studio';
-import { getCurrentUser, verifyIdTokenSafe } from '@/lib/actions/auth';
+import { allowDevAuthBypass } from '@/lib/env';
+import { getCurrentUser } from '@/lib/actions/auth';
 import { getSuperAdminAllTenants } from '@/lib/actions/users';
 
 export default async function AdminLayout({
@@ -11,11 +10,10 @@ export default async function AdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const isDev = await isAiStudio();
   const cookieStore = await cookies();
   const session = cookieStore.get('__session')?.value;
 
-  if (!session && !isDev) {
+  if (!session && !allowDevAuthBypass()) {
     redirect('/login');
   }
 

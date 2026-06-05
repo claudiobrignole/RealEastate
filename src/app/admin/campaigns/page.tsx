@@ -1,13 +1,12 @@
 import Link from 'next/link';
 import { getLeadStats } from '@/lib/actions/leads';
+import ExportLeadsButton from '@/components/admin/ExportLeadsButton';
 import { 
-  BarChart3, 
   Settings, 
   Users, 
   Facebook, 
   Globe, 
   Info, 
-  Download 
 } from 'lucide-react';
 
 export default async function CampaignsPage() {
@@ -45,9 +44,7 @@ export default async function CampaignsPage() {
           <p className="font-body-lg text-body-lg text-on-surface-variant mb-1">Performance & Analytics</p>
           <h2 className="font-h1 text-h1 text-primary">Report Acquisizione</h2>
         </div>
-        <button className="px-5 py-2.5 border border-outline-variant text-primary font-semibold text-sm rounded-lg hover:bg-surface-container-low transition-colors flex items-center gap-2 shadow-sm" id="export-report-btn">
-          <Download className="w-4 h-4" /> Export Report
-        </button>
+        <ExportLeadsButton />
       </div>
 
       {/* KPI 3-card Grid */}

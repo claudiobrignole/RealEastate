@@ -1,26 +1,24 @@
 'use server';
 
-import { serverDb } from '@/lib/firebase-server';
-import { doc, setDoc } from 'firebase/firestore/lite';
+import { getDocData, setDocData } from '@/lib/server-db';
 import { getTenantId, getCurrentUser } from './auth';
 
-export async function createTenant(tenantData: any) {
+export async function createTenant(tenantData: Record<string, unknown>) {
   try {
-    const tenantId = await getTenantId(); 
+    const tenantId = await getTenantId();
     if (!tenantId) throw new Error('Unauthorized');
-    
-    const docRef = doc(serverDb, 'tenants', tenantId);
-    await setDoc(docRef, {
+
+    await setDocData('tenants', tenantId, {
       ...tenantData,
       plan: 'starter',
       maxUsers: 1,
       currentUserCount: 1,
-      createdAt: new Date().toISOString()
-    }, { merge: true });
+      createdAt: new Date().toISOString(),
+    }, true);
 
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : 'Errore' };
   }
 }
 
@@ -29,17 +27,10 @@ export async function getTenantSettings() {
     const tenantId = await getTenantId();
     if (!tenantId) return { success: false, error: 'Unauthorized' };
 
-    const { getDoc } = await import('firebase/firestore/lite');
-    const docRef = doc(serverDb, 'tenants', tenantId);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      return { success: true, data: docSnap.data() };
-    } else {
-      return { success: true, data: null };
-    }
-  } catch (error: any) {
-    return { success: false, error: error.message };
+    const data = await getDocData('tenants', tenantId);
+    return { success: true, data: data as Record<string, unknown> | null };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : 'Errore' };
   }
 }
 
@@ -47,13 +38,10 @@ export async function updateTenantMetaStatus(metaConnected: boolean) {
   try {
     const tenantId = await getTenantId();
     if (!tenantId) throw new Error('Unauthorized');
-
-    const docRef = doc(serverDb, 'tenants', tenantId);
-    await setDoc(docRef, { metaConnected }, { merge: true });
-
+    await setDocData('tenants', tenantId, { metaConnected }, true);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : 'Errore' };
   }
 }
 
@@ -68,18 +56,17 @@ export async function updateTenantMetaConfig(data: {
     const tenantId = await getTenantId();
     if (!tenantId) throw new Error('Unauthorized');
 
-    const docRef = doc(serverDb, 'tenants', tenantId);
-    await setDoc(docRef, {
+    await setDocData('tenants', tenantId, {
       metaConnected: data.metaConnected,
       metaAccessToken: data.metaAccessToken ?? null,
       metaPageId: data.metaPageId ?? null,
       metaPageName: data.metaPageName ?? null,
       metaFormId: data.metaFormId ?? null,
-    }, { merge: true });
+    }, true);
 
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : 'Errore' };
   }
 }
 
@@ -89,9 +76,7 @@ export async function updateTenantMetaConnection(
 ) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, error: 'Unauthorized' };
-    }
+    if (!user) return { success: false, error: 'Unauthorized' };
 
     const isSuperAdmin = user.role === 'super_admin';
     const isTenantAdminOfTarget = user.role === 'tenant_admin' && user.tenantId === tenantId;
@@ -100,17 +85,16 @@ export async function updateTenantMetaConnection(
       return { success: false, error: 'Non autorizzato' };
     }
 
-    const docRef = doc(serverDb, 'tenants', tenantId);
-    await setDoc(docRef, {
+    await setDocData('tenants', tenantId, {
       metaPageId: data.metaPageId,
       metaAccessToken: data.metaAccessToken,
       metaConnected: true,
-      metaConnectedAt: new Date().toISOString()
-    }, { merge: true });
+      metaConnectedAt: new Date().toISOString(),
+    }, true);
 
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : 'Errore' };
   }
 }
 
@@ -121,8 +105,6 @@ export async function getMetaOAuthUrl(): Promise<string> {
   const appId = process.env.META_APP_ID || '';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const callbackUrl = `${baseUrl}/api/meta/callback`;
-  
+
   return `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=pages_show_list,leads_retrieval,pages_read_engagement&response_type=code&state=${tenantId}`;
 }
-
-

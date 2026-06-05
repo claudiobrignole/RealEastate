@@ -203,7 +203,9 @@ export default async function LeadsPage({ searchParams }: PageProps) {
                               {initials}
                             </div>
                             <div>
-                              <p className="font-semibold text-sm text-primary leading-tight">{displayName}</p>
+                              <Link href={`/admin/leads/${lead.id}`} className="font-semibold text-sm text-primary leading-tight hover:text-secondary">
+                                {displayName}
+                              </Link>
                               <p className="text-xs text-on-surface-variant font-medium">{lead.email}</p>
                               {lead.phone && <p className="text-[10px] text-on-surface-variant font-mono mt-0.5">{lead.phone}</p>}
                             </div>

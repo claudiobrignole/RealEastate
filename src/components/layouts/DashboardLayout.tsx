@@ -7,9 +7,7 @@ import {
   LayoutDashboard,
   Layers,
   Users,
-  Megaphone,
   Calendar,
-  BarChart2,
   Settings,
   Bell,
   Menu,
@@ -21,23 +19,17 @@ import {
   UserCheck,
   Puzzle
 } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { switchActiveTenant, logoutUser } from '@/lib/actions/auth';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-export function cn(...inputs: (string | undefined | null | false)[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
 
 const navItems = [
-  { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/campaigns', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/projects', icon: Layers, label: 'Progetti & Landing' },
   { href: '/admin/leads', icon: Users, label: 'CRM & Leads' },
-  { href: '/admin/campaigns', icon: Megaphone, label: 'Campagne Ads' },
   { href: '/admin/appointments', icon: Calendar, label: 'Appuntamenti' },
-  { href: '/admin/analytics', icon: BarChart2, label: 'Analytics' },
   { href: '/admin/settings/users', icon: UserCheck, label: 'Team' },
   { href: '/admin/settings', icon: Puzzle, label: 'Integrazioni' },
 ];
@@ -107,9 +99,7 @@ export default function DashboardLayout({
     return true;
   });
 
-  const currentNavItem = filteredNavItems.find((item) => 
-    item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href)
-  );
+  const currentNavItem = filteredNavItems.find((item) => pathname.startsWith(item.href));
   const breadcrumb = currentNavItem ? currentNavItem.label : 'Dashboard';
 
   const handleTenantSwitch = async (tenantId: string | null) => {

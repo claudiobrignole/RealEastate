@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { allowDevAuthBypass } from '@/lib/env-client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,31 +14,50 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const completeSession = async (idToken: string) => {
+    const sessionRes = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const sessionData = await sessionRes.json();
+    if (!sessionRes.ok || !sessionData.success) {
+      throw new Error(sessionData.error || 'Impossibile creare la sessione');
+    }
+    document.cookie = '__explicit_logout=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    window.location.href = '/admin/campaigns';
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      const res = await response.json();
-      
-      if (res.success) {
-        // Clear explicitly logged out cookie so the layout is authorized to parse session
-        document.cookie = '__explicit_logout=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
-        // Force direct reload so dashboard layout loads with full Fresh data
-        window.location.href = '/admin';
+      const credential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      const idToken = await credential.user.getIdToken();
+      await completeSession(idToken);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        setError('Credenziali non valide. Verifica email e password Firebase Auth.');
       } else {
-        setError(res.error || 'Credenziali non valide o utente non configurato');
-        setLoading(false);
+        setError(err instanceof Error ? err.message : 'Errore durante il login');
       }
-    } catch (err: any) {
-      setError(err.message || 'Errore di connessione durante il login');
+      setLoading(false);
+    }
+  };
+
+  const handleDevBypass = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/dev-bypass', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Dev bypass non disponibile');
+      window.location.href = '/admin/campaigns';
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Errore dev bypass');
       setLoading(false);
     }
   };
@@ -45,52 +67,57 @@ export default function LoginPage() {
       <div className="bg-surface-container-lowest p-8 rounded-2xl shadow-lg max-w-md w-full border border-outline-variant flex flex-col justify-between animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary text-center mb-2">ZeroAgenzia</h1>
-          <p className="text-sm text-on-surface-variant text-center mb-8">Accedi al tuo account CRM</p>
-          
+          <p className="text-sm text-on-surface-variant text-center mb-8">Accedi al CRM immobiliare</p>
+
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-semibold">
+            <div className="mb-4 p-3 bg-error-container text-on-error-container rounded-lg text-sm border border-error/20">
               {error}
             </div>
           )}
-          
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-on-surface mb-1 uppercase tracking-wider">Email</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="E.g. claudio.brignole@exmachina.ch"
-                className="w-full bg-surface-container border border-outline rounded-lg p-3 text-on-surface outline-none focus:border-primary transition-all text-sm font-medium"
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">Email</label>
+              <input
+                type="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nome@agenzia.it"
+                className="w-full px-4 py-2 border border-outline-variant rounded-lg bg-surface focus:ring-2 focus:ring-secondary outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-on-surface mb-1 uppercase tracking-wider">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Inserisci la tua password"
-                className="w-full bg-surface-container border border-outline rounded-lg p-3 text-on-surface outline-none focus:border-primary transition-all text-sm font-medium"
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">Password</label>
+              <input
+                type="password"
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password Firebase Auth"
+                className="w-full px-4 py-2 border border-outline-variant rounded-lg bg-surface focus:ring-2 focus:ring-secondary outline-none"
               />
             </div>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
-              className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold flex items-center justify-center hover:bg-inverse-surface transition-all duration-200 cursor-pointer disabled:opacity-50 text-sm shadow-sm"
+              className="w-full py-3 bg-primary text-on-primary font-semibold rounded-lg hover:bg-inverse-surface transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Accedi'}
             </button>
           </form>
-
-          <div className="mt-8 border-t border-outline-variant pt-4 text-center">
-            <p className="text-[10px] text-on-surface-variant">
-              In caso di difficoltà di accesso, contatta il Super Amministratore dello spazio.
-            </p>
-          </div>
         </div>
+
+        {allowDevAuthBypass() && (
+          <button
+            type="button"
+            onClick={handleDevBypass}
+            disabled={loading}
+            className="mt-6 w-full py-2 text-xs text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors"
+          >
+            Dev: accesso rapido (solo locale)
+          </button>
+        )}
       </div>
     </div>
   );

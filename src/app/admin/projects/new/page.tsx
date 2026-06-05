@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Sparkles, Save, ArrowLeft, LayoutTemplate, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { cn } from '@/lib/utils';
-import { createProject } from '@/lib/actions/projects';
+import { createProject, getProject, updateProject } from '@/lib/actions/projects';
+import BlockRenderer from '@/components/blocks/BlockRenderer';
 
 import ThemeVariant1 from '@/components/themes/ThemeVariant1';
 import ThemeVariant2 from '@/components/themes/ThemeVariant2';
@@ -85,9 +86,12 @@ interface LocalizedContent {
   content: string;
 }
 
-export default function NewProjectPage() {
+function NewProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
   const [isSaving, setIsSaving] = useState(false);
+  const [loadingProject, setLoadingProject] = useState(!!editId);
   const [activeLang, setActiveLang] = useState<Language>('it');
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -127,6 +131,30 @@ export default function NewProjectPage() {
   ];
 
   const [isTranslating, setIsTranslating] = useState(false);
+
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      const res = await getProject(editId);
+      if (!res.success || !res.data) {
+        alert(res.error || 'Progetto non trovato');
+        setLoadingProject(false);
+        return;
+      }
+      const p = res.data as Record<string, unknown>;
+      setSlug((p.slug as string) || '');
+      setTheme((p.themeId as string) || 'landing_variant_1');
+      if (p.themeColors) {
+        const tc = p.themeColors as { primary?: string; accent?: string; heroBg?: string };
+        if (tc.primary) setPrimaryColor(tc.primary);
+        if (tc.accent) setAccentColor(tc.accent);
+        if (tc.heroBg) setHeroBgColor(tc.heroBg);
+      }
+      if (p.content) setContent(p.content as Record<Language, LocalizedContent>);
+      if (p.blocks) setBlocks(p.blocks as PageBlock[]);
+      setLoadingProject(false);
+    })();
+  }, [editId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -230,16 +258,23 @@ export default function NewProjectPage() {
     }
     try {
       setIsSaving(true);
-      const res = await createProject({
+      const payload = {
         slug: slug || content.it.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         themeId: theme,
         content: content,
-        blocks: blocks,
+        blocks: blocks.map((b) => ({
+          ...b,
+          data: { ...b.data, accentColor: b.data?.accentColor || accentColor },
+        })),
         themeColors: { primary: primaryColor, accent: accentColor, heroBg: heroBgColor },
-        status: 'draft'
-      });
+        accentColor,
+        status: 'published',
+      };
+      const res = editId
+        ? await updateProject(editId, payload)
+        : await createProject(payload);
       if (res.success) {
-        alert("Progetto Salvato con successo!");
+        alert(editId ? 'Progetto aggiornato!' : 'Progetto salvato con successo!');
         router.push('/admin/projects');
       } else {
         console.error("Errore salvataggio:", res.error);
@@ -252,6 +287,10 @@ export default function NewProjectPage() {
       setIsSaving(false);
     }
   };
+
+  if (loadingProject) {
+    return <div className="p-12 text-center text-on-surface-variant">Caricamento progetto...</div>;
+  }
 
   return (
     <div className="pt-12 px-[12px] md:px-[24px] lg:px-margin py-md max-w-[1800px] mx-auto min-h-screen flex flex-col overflow-x-hidden">
@@ -923,39 +962,12 @@ export default function NewProjectPage() {
                   Aggiungi dei blocchi per visualizzare l&apos;anteprima
                 </div>
               ) : (
-                blocks.map(block => {
-                  if (block.type === 'hero') {
-                    return <HeroBlock key={block.id} data={{
-                      ...block.data,
-                      title: block.data?.title?.[activeLang] || '',
-                      subtitle: block.data?.subtitle?.[activeLang] || ''
-                    }} />;
-                  }
-                  if (block.type === 'editorial') {
-                    return <EditorialBlock key={block.id} data={{
-                      ...block.data,
-                      title: block.data?.title || '',
-                      body: block.data?.body?.[activeLang] || ''
-                    }} />;
-                  }
-                  if (block.type === 'features') {
-                    return <FeaturesBlock key={block.id} data={block.data} />;
-                  }
-                  if (block.type === 'form') {
-                    return <FormBlock key={block.id} data={{
-                      ...block.data,
-                      projectId: slug || 'preview'
-                    }} />;
-                  }
-                  if (block.type === 'gallery') {
-                    return <GalleryBlock key={block.id} data={block.data} />;
-                  }
-                  return (
-                    <div key={block.id} className="p-8 border-2 border-dashed border-outline-variant m-8 text-center text-on-surface-variant rounded-lg bg-surface-container-lowest">
-                      Render di <span className="font-bold">{block.type}</span> da implementare
-                    </div>
-                  );
-                })
+                <BlockRenderer
+                  blocks={blocks}
+                  lang={activeLang}
+                  projectId={slug || editId || 'preview'}
+                  accentColor={accentColor}
+                />
               )}
             </div>
           </div>
@@ -963,5 +975,13 @@ export default function NewProjectPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function NewProjectPageWrapper() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-on-surface-variant">Caricamento editor...</div>}>
+      <NewProjectPage />
+    </Suspense>
   );
 }

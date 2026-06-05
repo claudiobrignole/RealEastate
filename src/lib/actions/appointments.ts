@@ -1,38 +1,25 @@
 'use server';
 
-import { serverDb } from '@/lib/firebase-server';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  updateDoc, 
-  doc, 
-  query, 
-  where, 
-  orderBy, 
-  serverTimestamp 
-} from 'firebase/firestore/lite';
+import {
+  addDocData,
+  queryCollection,
+  serverTimestamp,
+  updateDocData,
+} from '@/lib/server-db';
 import { getTenantId } from './auth';
 
 export async function getAppointments(year: number, month: number) {
   try {
     const tenantId = await getTenantId();
-    const q = query(
-      collection(serverDb, 'appointments'),
-      where('tenantId', '==', tenantId),
-      where('year', '==', year),
-      where('month', '==', month)
-    );
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id
-    }));
-    
+    const data = await queryCollection('appointments', [
+      ['tenantId', '==', tenantId],
+      ['year', '==', year],
+      ['month', '==', month],
+    ]);
     return { success: true, data };
-  } catch (error: any) {
-    console.error('getAppointments error:', error);
-    return { success: false, error: error.message || 'Errore nel recupero degli appuntamenti' };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore nel recupero degli appuntamenti';
+    return { success: false, error: message };
   }
 }
 
@@ -40,69 +27,63 @@ export async function getTodayAppointments() {
   try {
     const tenantId = await getTenantId();
     const todayStr = new Date().toISOString().split('T')[0];
-    const q = query(
-      collection(serverDb, 'appointments'),
-      where('tenantId', '==', tenantId),
-      where('dateStr', '==', todayStr)
-    );
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id
-    })) as any[];
+    const data = await queryCollection('appointments', [
+      ['tenantId', '==', tenantId],
+      ['dateStr', '==', todayStr],
+    ]);
 
-    // Sort in JS by startTime to be absolutely safe and index-independent
-    data.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+    data.sort((a, b) =>
+      String(a.startTime || '').localeCompare(String(b.startTime || ''))
+    );
 
     return { success: true, data };
-  } catch (error: any) {
-    console.error('getTodayAppointments error:', error);
-    return { success: false, error: error.message || 'Errore nel recupero degli appuntamenti di oggi' };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore appuntamenti di oggi';
+    return { success: false, error: message };
   }
 }
 
-export async function createAppointment(data: { 
-  title: string; 
-  description?: string; 
-  dateStr: string; 
-  startTime: string; 
-  endTime: string; 
-  leadId?: string; 
-  leadName?: string; 
-  type: string; 
+export async function createAppointment(data: {
+  title: string;
+  dateStr: string;
+  startTime: string;
+  endTime?: string;
+  type?: string;
+  leadName?: string;
+  description?: string;
+  projectId?: string;
+  leadId?: string;
 }) {
   try {
     const tenantId = await getTenantId();
-    const parts = data.dateStr.split('-');
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
+    if (!tenantId) return { success: false, error: 'Non autorizzato' };
 
-    const docRef = await addDoc(collection(serverDb, 'appointments'), {
+    const [y, m] = data.dateStr.split('-').map(Number);
+    const id = await addDocData('appointments', {
       ...data,
       tenantId,
-      year,
-      month,
-      status: 'confirmed',
-      createdAt: serverTimestamp()
+      year: y,
+      month: m,
+      status: 'pending',
+      createdAt: serverTimestamp(),
     });
 
-    return { success: true, id: docRef.id };
-  } catch (error: any) {
-    console.error('createAppointment error:', error);
-    return { success: false, error: error.message || 'Errore durante la creazione dell\'appuntamento' };
+    return { success: true, id };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore creazione appuntamento';
+    return { success: false, error: message };
   }
 }
 
-export async function updateAppointmentStatus(
-  appointmentId: string, 
-  status: 'confirmed' | 'cancelled' | 'pending'
-) {
+export async function updateAppointmentStatus(appointmentId: string, status: string) {
   try {
-    const docRef = doc(serverDb, 'appointments', appointmentId);
-    await updateDoc(docRef, { status });
+    const tenantId = await getTenantId();
+    if (!tenantId) return { success: false, error: 'Non autorizzato' };
+
+    await updateDocData('appointments', appointmentId, { status });
     return { success: true };
-  } catch (error: any) {
-    console.error('updateAppointmentStatus error:', error);
-    return { success: false, error: error.message || 'Errore durante l\'aggiornamento dello stato' };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore aggiornamento';
+    return { success: false, error: message };
   }
 }

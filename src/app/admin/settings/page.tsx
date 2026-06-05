@@ -5,11 +5,11 @@ import Link from 'next/link';
 export default async function SettingsPage() {
   const result = await getTenantSettings();
   const settings = result.success ? result.data : null;
-  const metaConnected = settings?.metaConnected || false;
-  const metaAccessToken = settings?.metaAccessToken || '';
-  const metaPageId = settings?.metaPageId || '';
-  const metaPageName = settings?.metaPageName || '';
-  const metaFormId = settings?.metaFormId || '';
+  const metaConnected = Boolean(settings?.metaConnected);
+  const metaAccessToken = String(settings?.metaAccessToken || '');
+  const metaPageId = String(settings?.metaPageId || '');
+  const metaPageName = String(settings?.metaPageName || '');
+  const metaFormId = String(settings?.metaFormId || '');
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-8 animate-fade-in">

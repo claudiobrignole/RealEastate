@@ -3,7 +3,9 @@ import { MASTER_TENANT_ID, MASTER_TENANT_NAME } from '@/lib/tenant-constants';
 
 export { MASTER_TENANT_ID, MASTER_TENANT_NAME };
 
-export async function ensureMasterTenant(): Promise<Record<string, unknown>> {
+export async function ensureMasterTenant(): Promise<
+  Record<string, unknown> & { id: string }
+> {
   const existing = await getDocData('tenants', MASTER_TENANT_ID);
   if (existing) return existing;
 

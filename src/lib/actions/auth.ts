@@ -1,6 +1,7 @@
 'use server';
 
 import { adminAuth } from '@/lib/firebase-admin';
+import { ensureUserProfile } from '@/lib/ensure-user-profile';
 import { getDocData, setDocData, queryCollection } from '@/lib/server-db';
 import { cookies } from 'next/headers';
 import { UserRole } from '@/types/auth';
@@ -24,16 +25,43 @@ function getDevBypassUser(): Record<string, unknown> {
 const globalUserCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
 const CACHE_TTL_MS = 20000;
 
-async function verifySession(session: string): Promise<{ uid: string } | null> {
+async function verifySession(
+  session: string
+): Promise<{ uid: string; email?: string; name?: string } | null> {
   if (allowDevAuthBypass() && session === 'dev-bypass-token') {
     return { uid: DEV_UID };
   }
   try {
     const decoded = await adminAuth.verifySessionCookie(session, true);
-    return { uid: decoded.uid };
+    return {
+      uid: decoded.uid,
+      email: decoded.email,
+      name: (decoded as { name?: string }).name,
+    };
   } catch {
     return null;
   }
+}
+
+function profileFromToken(verified: {
+  uid: string;
+  email?: string;
+  name?: string;
+}): Record<string, unknown> {
+  const email = (verified.email || '').toLowerCase();
+  const seedEmails = (process.env.ADMIN_SEED_EMAILS || process.env.DEV_SUPER_ADMIN_EMAIL || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const role: UserRole = seedEmails.includes(email) ? 'super_admin' : 'tenant_admin';
+
+  return {
+    uid: verified.uid,
+    email: email || `${verified.uid}@firebase.local`,
+    name: verified.name || email.split('@')[0] || 'Utente',
+    role,
+    tenantId: DEV_UID,
+  };
 }
 
 async function fetchUserByUid(uid: string): Promise<Record<string, unknown> | null> {
@@ -51,7 +79,9 @@ async function fetchUserByUid(uid: string): Promise<Record<string, unknown> | nu
   }
 
   try {
-    return await getDocData('users', uid);
+    const data = await getDocData('users', uid);
+    if (data) return data;
+    return await ensureUserProfile(uid);
   } catch (error) {
     console.error('fetchUserByUid error:', error);
     return null;
@@ -77,7 +107,11 @@ const getCachedUser = cache(async (session: string | undefined) => {
   const verified = await verifySession(session);
   if (!verified) return null;
 
-  const res = await fetchUserByUid(verified.uid);
+  let res = await fetchUserByUid(verified.uid);
+  if (!res && verified.email) {
+    console.warn('Firestore profile missing/unavailable; using token fallback for', verified.uid);
+    res = profileFromToken(verified);
+  }
   if (!res) return null;
 
   const user = {

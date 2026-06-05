@@ -22,7 +22,14 @@ export default function LoginPage() {
     });
     const sessionData = await sessionRes.json();
     if (!sessionRes.ok || !sessionData.success) {
-      throw new Error(sessionData.error || 'Impossibile creare la sessione');
+      const detail = sessionData.error || 'Impossibile creare la sessione';
+      if (sessionRes.status === 503) {
+        throw new Error(`${detail} — controlla FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY.`);
+      }
+      if (sessionRes.status === 403) {
+        throw new Error(`${detail} Crea il documento users/{uid} in Firestore o riprova dopo il fix Admin.`);
+      }
+      throw new Error(detail);
     }
     document.cookie = '__explicit_logout=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
     window.location.href = '/admin/campaigns';

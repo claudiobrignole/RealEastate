@@ -156,6 +156,82 @@ Pulsante **"Dev: accesso rapido"** sulla pagina login — funziona anche senza u
 
 ---
 
+## Hostinger (produzione) — errori comuni login
+
+### Variabili nel pannello Hostinger
+
+Vai su **Websites → Manage → Environment variables** e imposta:
+
+```env
+NODE_ENV=production
+ALLOW_DEV_AUTH_BYPASS=false
+NEXT_PUBLIC_ALLOW_DEV_AUTH_BYPASS=false
+NEXT_PUBLIC_APP_URL=https://tuodominio.it
+APP_URL=https://tuodominio.it
+
+FIREBASE_PROJECT_ID=crafty-centaur-447409-g7
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@crafty-centaur-447409-g7.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n
+```
+
+> **Attenzione virgolette su `FIREBASE_CLIENT_EMAIL`**: deve essere  
+> `FIREBASE_CLIENT_EMAIL="email@..."`  
+> NON `FIREBASE_CLIENT_EMAIL=email@..."` (manca `"` iniziale → login rotto).
+
+> **`FIREBASE_PRIVATE_KEY`**: una sola riga con `\n` al posto degli a capo. Su Hostinger **non** incollare la chiave su più righe.
+
+### Diagnostica rapida
+
+Apri nel browser:
+
+```
+https://tuodominio.it/api/auth/health
+```
+
+Deve rispondere `"ok": true`. Se `false`, leggi `firebaseAdmin` per capire cosa manca.
+
+### Firebase Authentication
+
+In Firebase Console → **Authentication** → **Sign-in method** → abilita **Email/Password**.
+
+L’utente deve esistere in **Authentication** (non basta Firestore). Al primo login il profilo `users/{uid}` viene creato automaticamente se Firebase Admin è configurato.
+
+### Permessi service account (causa più frequente se login fallisce)
+
+Se `/api/auth/health` è `ok: true` ma login/creazione utenti fallisce, il service account **non ha permessi IAM**.
+
+1. Apri [Google Cloud IAM](https://console.cloud.google.com/iam-admin/iam?project=crafty-centaur-447409-g7)
+2. Trova `firebase-adminsdk-fbsvc@crafty-centaur-447409-g7.iam.gserviceaccount.com`
+3. **Modifica** → aggiungi questi ruoli:
+   - **Firebase Authentication Admin**
+   - **Cloud Datastore User**
+4. Salva e attendi 1–2 minuti
+
+Verifica in locale:
+
+```bash
+npm run check:firebase
+```
+
+Deve stampare ✅ per Auth e Firestore.
+
+### Errore virgolette (già visto in locale)
+
+```env
+# ❌ SBAGLIATO — manca " iniziale
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@....iam.gserviceaccount.com"
+
+# ✅ CORRETTO
+FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxx@....iam.gserviceaccount.com"
+```
+
+### Dopo aver cambiato le variabili su Hostinger
+
+1. `npm run build` (se non automatico)
+2. Riavvia l’applicazione Node dal pannello Hostinger
+
+---
+
 ## Checklist rapida
 
 - [ ] `.env.local` con `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`

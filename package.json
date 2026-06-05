@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port=3000 --hostname=0.0.0.0",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:firebase": "node scripts/check-firebase-admin.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

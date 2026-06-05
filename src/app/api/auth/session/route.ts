@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { adminAuth } from '@/lib/firebase-admin';
+import { adminAuth, getFirebaseAdminStatus } from '@/lib/firebase-admin';
+import { ensureUserProfile } from '@/lib/ensure-user-profile';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,9 +9,24 @@ const SESSION_MAX_AGE_MS = 60 * 60 * 24 * 5 * 1000; // 5 days
 
 export async function POST(req: NextRequest) {
   try {
+    const adminStatus = getFirebaseAdminStatus();
+    if (!adminStatus.ok) {
+      return NextResponse.json(
+        { success: false, error: `Server non configurato: ${adminStatus.message}` },
+        { status: 503 }
+      );
+    }
+
     const { idToken } = await req.json();
     if (!idToken || typeof idToken !== 'string') {
       return NextResponse.json({ success: false, error: 'Token mancante' }, { status: 400 });
+    }
+
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    try {
+      await ensureUserProfile(decoded.uid);
+    } catch (e) {
+      console.warn('ensureUserProfile skipped:', e);
     }
 
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
